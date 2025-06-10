@@ -59,8 +59,8 @@ class PDFComplianceReportGenerator:
             leftIndent=15
         ))
     
-    def generate_compliance_report(self, overview_data, compliance_data, recommendations, enhanced_findings=None):
-        """Generate comprehensive PDF compliance report"""
+    def generate_compliance_report(self, overview_data, compliance_data, recommendations, enhanced_findings=None, ai_summary=None):
+        """Generate comprehensive PDF compliance report with AI recommendations"""
         
         # Create PDF buffer
         buffer = io.BytesIO()
@@ -81,7 +81,7 @@ class PDFComplianceReportGenerator:
         story.append(PageBreak())
         
         # Executive summary
-        story.extend(self._create_executive_summary(overview_data, compliance_data))
+        story.extend(self._create_executive_summary(overview_data, compliance_data, ai_summary))
         story.append(PageBreak())
         
         # Security metrics overview
@@ -93,7 +93,7 @@ class PDFComplianceReportGenerator:
         story.append(PageBreak())
         
         # Security recommendations
-        story.extend(self._create_recommendations_section(recommendations))
+        story.extend(self._create_recommendations_section(recommendations, ai_summary))
         story.append(PageBreak())
         
         # Enhanced findings section
@@ -165,8 +165,8 @@ class PDFComplianceReportGenerator:
         
         return elements
     
-    def _create_executive_summary(self, overview_data, compliance_data):
-        """Create executive summary section"""
+    def _create_executive_summary(self, overview_data, compliance_data, ai_summary=None):
+        """Create executive summary section with AI insights"""
         elements = []
         
         elements.append(Paragraph("Executive Summary", self.styles['Heading1']))
@@ -314,8 +314,8 @@ class PDFComplianceReportGenerator:
         
         return elements
     
-    def _create_recommendations_section(self, recommendations):
-        """Create security recommendations section"""
+    def _create_recommendations_section(self, recommendations, ai_summary=None):
+        """Create security recommendations section with AI insights"""
         elements = []
         
         elements.append(Paragraph("Security Recommendations", self.styles['Heading1']))

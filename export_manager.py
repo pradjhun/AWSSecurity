@@ -369,14 +369,15 @@ class ExportManager:
         ext = extensions.get(export_type.lower(), 'txt')
         return f"{prefix}_{export_type.lower()}_{timestamp}.{ext}"
     
-    def export_compliance_report_to_pdf(self, overview_data, compliance_data, recommendations, enhanced_findings=None):
-        """Generate comprehensive PDF compliance report"""
+    def export_compliance_report_to_pdf(self, overview_data, compliance_data, recommendations, enhanced_findings=None, ai_summary=None):
+        """Generate comprehensive PDF compliance report with AI recommendations"""
         try:
             pdf_data = self.pdf_generator.generate_compliance_report(
                 overview_data, 
                 compliance_data, 
                 recommendations, 
-                enhanced_findings
+                enhanced_findings,
+                ai_summary
             )
             return pdf_data
         except Exception as e:
