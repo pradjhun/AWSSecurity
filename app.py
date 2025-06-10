@@ -1459,6 +1459,13 @@ def show_owasp_llm_tab(security_monitors, dashboard_components):
         # Security checklist
         st.subheader("✅ LLM Security Checklist")
         
+        # Add helpful notation
+        st.info("""
+        💡 **Tip:** Use these checkboxes to track your LLM security implementation progress. 
+        Check off items as you implement them in your AWS environment. This creates an audit trail 
+        for compliance reporting and helps ensure you don't miss critical security measures.
+        """)
+        
         checklist = llm_security.create_llm_security_checklist()
         
         for category, items in checklist.items():
@@ -1466,7 +1473,11 @@ def show_owasp_llm_tab(security_monitors, dashboard_components):
                 for item in items:
                     col1, col2 = st.columns([0.1, 0.9])
                     with col1:
-                        completed = st.checkbox("", key=f"checklist_{category}_{items.index(item)}")
+                        completed = st.checkbox(
+                            f"Complete {item[:20]}...", 
+                            key=f"checklist_{category}_{items.index(item)}",
+                            label_visibility="hidden"
+                        )
                     with col2:
                         st.write(item)
         
