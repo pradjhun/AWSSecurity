@@ -225,6 +225,65 @@ def show_overview_tab(security_monitors, dashboard_components):
         else:
             st.info("No recent security events found")
         
+        # One-click compliance report
+        st.subheader("📄 Quick Actions")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🚀 Generate Compliance Report (PDF)", type="primary", key="quick_pdf_report"):
+                try:
+                    with st.spinner("Generating comprehensive compliance report..."):
+                        export_manager = ExportManager()
+                        compliance_data = security_monitors.get_compliance_data()
+                        enhanced_findings = getattr(st.session_state, 'enhanced_findings', [])
+                        
+                        pdf_data = export_manager.export_compliance_report_to_pdf(
+                            overview_data,
+                            compliance_data,
+                            overview_data.get('recommendations', []),
+                            enhanced_findings
+                        )
+                        
+                        filename = export_manager.get_pdf_filename()
+                        
+                        st.download_button(
+                            label="📥 Download Compliance Report",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            key="download_compliance_pdf"
+                        )
+                        st.success("Compliance report generated successfully!")
+                except Exception as e:
+                    st.error(f"Error generating PDF report: {str(e)}")
+        
+        with col2:
+            if st.button("📊 Export All Data (JSON)", key="quick_json_export"):
+                try:
+                    export_manager = ExportManager()
+                    all_data = {
+                        'overview': overview_data,
+                        'compliance': security_monitors.get_compliance_data(),
+                        'enhanced_findings': getattr(st.session_state, 'enhanced_findings', [])
+                    }
+                    json_data = export_manager.export_findings_to_json(all_data)
+                    filename = export_manager.get_export_filename('json', 'complete_assessment')
+                    
+                    st.download_button(
+                        label="📥 Download JSON Export",
+                        data=json_data,
+                        file_name=filename,
+                        mime="application/json",
+                        key="download_json_all"
+                    )
+                except Exception as e:
+                    st.error(f"Error exporting data: {str(e)}")
+        
+        with col3:
+            if st.button("🔍 Run Enhanced Checks", key="quick_enhanced_checks"):
+                st.info("Redirecting to Enhanced Checks tab...")
+                st.session_state.run_enhanced_checks = True
+
         # Security recommendations
         st.subheader("🎯 Security Recommendations")
         st.markdown("Implement these recommendations to improve your security score:")
@@ -819,6 +878,54 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                                 st.markdown(f"**Status:** {finding.get('status', 'N/A')}")
                 else:
                     st.success("No security issues found in the selected assessments!")
+                
+                # PDF Export option after running checks
+                if all_findings:
+                    st.subheader("📄 Export Enhanced Findings")
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("Generate PDF Report with Findings", type="primary", key="enhanced_pdf_export"):
+                            try:
+                                with st.spinner("Generating PDF report with enhanced findings..."):
+                                    export_manager = ExportManager()
+                                    overview_data = security_monitors.get_security_overview()
+                                    compliance_data = security_monitors.get_compliance_data()
+                                    
+                                    pdf_data = export_manager.export_compliance_report_to_pdf(
+                                        overview_data,
+                                        compliance_data,
+                                        overview_data.get('recommendations', []),
+                                        all_findings
+                                    )
+                                    
+                                    filename = export_manager.get_pdf_filename("enhanced_security_assessment")
+                                    
+                                    st.download_button(
+                                        label="Download Enhanced Security Report",
+                                        data=pdf_data,
+                                        file_name=filename,
+                                        mime="application/pdf",
+                                        key="download_enhanced_pdf"
+                                    )
+                                    st.success("Enhanced security report generated successfully!")
+                            except Exception as e:
+                                st.error(f"Error generating enhanced PDF report: {str(e)}")
+                    
+                    with col2:
+                        # JSON export for enhanced findings
+                        if st.button("Export Findings as JSON", key="enhanced_json_export"):
+                            export_manager = ExportManager()
+                            json_data = export_manager.export_findings_to_json(all_findings)
+                            filename = export_manager.get_export_filename('json', 'enhanced_findings')
+                            
+                            st.download_button(
+                                label="Download JSON Findings",
+                                data=json_data,
+                                file_name=filename,
+                                mime="application/json",
+                                key="download_enhanced_json"
+                            )
                     
     except Exception as e:
         st.error(f"Error running enhanced security checks: {str(e)}")
@@ -870,6 +977,32 @@ def show_export_reports_tab(security_monitors, dashboard_components):
         
         with col2:
             st.markdown("### 📋 Comprehensive Reports")
+            
+            # PDF Compliance Report
+            if st.button("📄 Generate Compliance Report (PDF)", type="primary", key="pdf_compliance_export"):
+                try:
+                    with st.spinner("Generating comprehensive PDF compliance report..."):
+                        enhanced_findings = getattr(st.session_state, 'enhanced_findings', [])
+                        
+                        pdf_data = export_manager.export_compliance_report_to_pdf(
+                            overview_data,
+                            compliance_data,
+                            overview_data.get('recommendations', []),
+                            enhanced_findings
+                        )
+                        
+                        filename = export_manager.get_pdf_filename()
+                        
+                        st.download_button(
+                            label="📥 Download PDF Compliance Report",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            key="download_pdf_compliance"
+                        )
+                        st.success("PDF compliance report generated successfully!")
+                except Exception as e:
+                    st.error(f"Error generating PDF report: {str(e)}")
             
             # HTML Export
             if st.button("Generate Executive Report (HTML)", key="html_export"):

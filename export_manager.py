@@ -7,12 +7,14 @@ import csv
 import io
 from datetime import datetime
 import pandas as pd
+from pdf_report_generator import PDFComplianceReportGenerator
 
 class ExportManager:
     """Handles export functionality for security assessment data"""
     
     def __init__(self):
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.pdf_generator = PDFComplianceReportGenerator()
     
     def export_findings_to_json(self, findings_data, include_metadata=True):
         """Export security findings to JSON format"""
@@ -366,3 +368,20 @@ class ExportManager:
         }
         ext = extensions.get(export_type.lower(), 'txt')
         return f"{prefix}_{export_type.lower()}_{timestamp}.{ext}"
+    
+    def export_compliance_report_to_pdf(self, overview_data, compliance_data, recommendations, enhanced_findings=None):
+        """Generate comprehensive PDF compliance report"""
+        try:
+            pdf_data = self.pdf_generator.generate_compliance_report(
+                overview_data, 
+                compliance_data, 
+                recommendations, 
+                enhanced_findings
+            )
+            return pdf_data
+        except Exception as e:
+            raise Exception(f"PDF report generation failed: {str(e)}")
+    
+    def get_pdf_filename(self, prefix="aws_compliance_report"):
+        """Generate PDF filename"""
+        return self.pdf_generator.generate_filename(prefix)
