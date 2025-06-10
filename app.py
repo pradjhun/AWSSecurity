@@ -559,6 +559,28 @@ def show_compliance_tab(security_monitors, dashboard_components):
     
     try:
         compliance_data = security_monitors.get_compliance_data()
+        overview_data = security_monitors.get_security_overview()
+        
+        # Initialize compliance analyzer for unknown issues
+        from compliance_analyzer import ComplianceAnalyzer
+        compliance_analyzer = ComplianceAnalyzer(security_monitors.ai_engine)
+        
+        # Analyze unknown compliance issues
+        unknown_analysis = compliance_analyzer.analyze_unknown_compliance_issues(compliance_data, overview_data)
+        
+        # Show AI-powered message box for unknown compliance issues
+        if unknown_analysis['total_unknown'] > 0 or unknown_analysis['total_unclear'] > 0:
+            st.warning(f"🔍 Found {unknown_analysis['total_unknown']} unknown and {unknown_analysis['total_unclear']} unclear compliance issues")
+            
+            with st.spinner("Analyzing compliance issues and generating solutions..."):
+                solutions = compliance_analyzer.generate_compliance_solutions(
+                    unknown_analysis['unknown_issues'],
+                    unknown_analysis['unclear_issues'], 
+                    overview_data
+                )
+                
+                if solutions:
+                    compliance_analyzer.display_compliance_message_box(solutions)
         
         # Compliance metrics
         col1, col2, col3, col4 = st.columns(4)
@@ -895,6 +917,54 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                 
                 # Store findings in session state for export
                 st.session_state.enhanced_findings = all_findings
+                
+                # Analyze findings for unknown or unclear issues
+                from compliance_analyzer import ComplianceAnalyzer
+                compliance_analyzer = ComplianceAnalyzer(security_monitors.ai_engine)
+                
+                unknown_enhanced_issues = []
+                unclear_enhanced_issues = []
+                
+                for finding in all_findings:
+                    severity = finding.get('severity', '').upper()
+                    status = finding.get('status', '').upper()
+                    
+                    # Identify unknown or unclear findings
+                    if 'UNKNOWN' in status or severity == 'UNKNOWN' or not finding.get('description'):
+                        unknown_enhanced_issues.append({
+                            'rule_name': finding.get('title', 'Unknown Check'),
+                            'status': status,
+                            'resource_type': finding.get('resource_type', 'Unknown'),
+                            'description': finding.get('description', 'No description available'),
+                            'check_id': finding.get('check_id', 'Unknown'),
+                            'severity': severity
+                        })
+                    elif 'PARTIAL' in status or severity == 'INFO' or 'INSUFFICIENT' in status:
+                        unclear_enhanced_issues.append({
+                            'rule_name': finding.get('title', 'Unknown Check'),
+                            'status': status,
+                            'resource_type': finding.get('resource_type', 'Unknown'),
+                            'description': finding.get('description', 'No description available'),
+                            'check_id': finding.get('check_id', 'Unknown'),
+                            'severity': severity
+                        })
+                
+                # Show AI-powered message box for unknown enhanced findings
+                if unknown_enhanced_issues or unclear_enhanced_issues:
+                    st.warning(f"Found {len(unknown_enhanced_issues)} unknown and {len(unclear_enhanced_issues)} unclear security findings requiring analysis")
+                    
+                    # Generate solutions for enhanced findings
+                    overview_data = security_monitors.get_security_overview()
+                    with st.spinner("Generating AI-powered solutions for unclear findings..."):
+                        enhanced_solutions = compliance_analyzer.generate_compliance_solutions(
+                            unknown_enhanced_issues,
+                            unclear_enhanced_issues,
+                            overview_data
+                        )
+                        
+                        if enhanced_solutions:
+                            st.subheader("AI-Powered Enhanced Security Analysis")
+                            compliance_analyzer.display_compliance_message_box(enhanced_solutions)
                 
                 # Display results
                 st.subheader("Security Assessment Results")

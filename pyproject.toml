@@ -12,4 +12,5 @@ dependencies = [
     "pandas>=2.3.0",
     "reportlab>=4.4.1",
     "openai>=1.85.0",
+    "anthropic>=0.53.0",
 ]
