@@ -336,17 +336,39 @@ class SecurityMonitors:
                 
                 # Count active threats (findings from last 24 hours)
                 updated_at = finding.get('UpdatedAt')
-                if updated_at and (datetime.utcnow() - updated_at.replace(tzinfo=None)).days < 1:
-                    active_threats += 1
+                if updated_at:
+                    try:
+                        if isinstance(updated_at, str):
+                            # Parse string timestamp
+                            updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                        if hasattr(updated_at, 'replace') and updated_at.tzinfo is not None:
+                            updated_at = updated_at.replace(tzinfo=None)
+                        if (datetime.utcnow() - updated_at).days < 1:
+                            active_threats += 1
+                    except Exception:
+                        pass  # Skip if date parsing fails
                 
                 # Format for display
+                original_updated_at = finding.get('UpdatedAt')
+                formatted_date = 'N/A'
+                if original_updated_at:
+                    try:
+                        if isinstance(original_updated_at, str):
+                            parsed_date = datetime.fromisoformat(original_updated_at.replace('Z', '+00:00'))
+                            formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            # Assume it's a datetime object
+                            formatted_date = original_updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                    except Exception:
+                        formatted_date = str(original_updated_at)
+                
                 recent_findings.append({
                     'Title': finding.get('Title', 'N/A'),
                     'Type': finding.get('Type', 'N/A'),
                     'Severity': self._get_severity_label(severity),
                     'Resource': finding.get('Resource', {}).get('Type', 'N/A'),
                     'Region': finding.get('Region', 'N/A'),
-                    'Updated': updated_at.strftime('%Y-%m-%d %H:%M:%S') if updated_at else 'N/A'
+                    'Updated': formatted_date
                 })
             
             return {

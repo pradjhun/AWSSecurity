@@ -241,7 +241,7 @@ class AWSClient:
                 response = cloudtrail_client.lookup_events(
                     StartTime=start_time,
                     EndTime=end_time,
-                    MaxItems=max_items
+                    MaxResults=max_items
                 )
                 return response['Events']
             return []
