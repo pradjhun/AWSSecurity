@@ -944,8 +944,11 @@ def show_ai_recommendations_tab(security_monitors, dashboard_components):
         if connectivity_test[0]:
             st.success("✅ AWS Bedrock AI engine is connected and ready")
         else:
-            st.warning(f"⚠️ Bedrock connectivity issue: {connectivity_test[1]}")
+            st.error(f"❌ Bedrock connectivity issue: {connectivity_test[1]}")
             st.info("💡 Ensure your AWS credentials have access to Bedrock service and the Claude model is available in your region")
+            st.info("📍 Note: Bedrock may not be available in all regions. Try us-east-1 or us-west-2.")
+    else:
+        st.error("❌ AI engine not initialized")
     
     # Add refresh button
     col1, col2 = st.columns([3, 1])
@@ -969,9 +972,14 @@ def show_ai_recommendations_tab(security_monitors, dashboard_components):
         
         # Generate AI recommendations
         with st.spinner("🧠 AI is analyzing your AWS security configuration..."):
-            ai_result = security_monitors.ai_engine.generate_intelligent_recommendations(
-                overview_data, compliance_data, enhanced_findings
-            )
+            try:
+                ai_result = security_monitors.ai_engine.generate_intelligent_recommendations(
+                    overview_data, compliance_data, enhanced_findings
+                )
+                st.info(f"AI analysis completed. Success: {ai_result.get('generation_success', False)}")
+            except Exception as ai_error:
+                st.error(f"AI recommendation generation failed: {str(ai_error)}")
+                ai_result = {'generation_success': False, 'recommendations': [], 'ai_summary': {}}
         
         if ai_result.get('generation_success', False):
             st.success("✨ AI analysis completed successfully!")
