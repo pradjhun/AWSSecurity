@@ -19,11 +19,16 @@ class AIComplianceEngine:
     def initialize_bedrock(self):
         """Initialize AWS Bedrock client"""
         try:
-            self.bedrock_client = self.aws_client.get_client('bedrock-runtime')
-            if not self.bedrock_client:
-                print("Bedrock client not available")
+            # Try to initialize bedrock-runtime client directly
+            self.bedrock_client = boto3.client(
+                'bedrock-runtime',
+                aws_access_key_id=self.aws_client.aws_access_key_id,
+                aws_secret_access_key=self.aws_client.aws_secret_access_key,
+                region_name=self.aws_client.region_name
+            )
         except Exception as e:
             print(f"Error initializing Bedrock: {str(e)}")
+            self.bedrock_client = None
     
     def generate_intelligent_recommendations(self, overview_data, compliance_data, enhanced_findings=None):
         """Generate AI-powered security and compliance recommendations"""
@@ -123,10 +128,13 @@ class AIComplianceEngine:
             }
             
             # Invoke Bedrock model
-            response = self.bedrock_client.invoke_model(
-                modelId=self.model_id,
-                body=json.dumps(request_body)
-            )
+            if self.bedrock_client:
+                response = self.bedrock_client.invoke_model(
+                    modelId=self.model_id,
+                    body=json.dumps(request_body)
+                )
+            else:
+                raise Exception("Bedrock client not initialized")
             
             # Parse response
             response_body = json.loads(response['body'].read())
