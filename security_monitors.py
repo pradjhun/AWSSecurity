@@ -46,7 +46,8 @@ class SecurityMonitors:
                 'critical_alerts': critical_alerts,
                 'recent_events': formatted_events,
                 'security_trends': self._get_security_trends(),
-                'alert_distribution': self._get_alert_distribution()
+                'alert_distribution': self._get_alert_distribution(),
+                'recommendations': self._get_security_recommendations()
             }
         except Exception as e:
             print(f"Error getting security overview: {str(e)}")
@@ -57,7 +58,8 @@ class SecurityMonitors:
                 'critical_alerts': 0,
                 'recent_events': [],
                 'security_trends': None,
-                'alert_distribution': None
+                'alert_distribution': None,
+                'recommendations': []
             }
     
     def get_iam_security_data(self):
@@ -348,17 +350,23 @@ class SecurityMonitors:
                     except Exception:
                         pass  # Skip if date parsing fails
                 
-                # Format for display
+                # Format for display  
                 original_updated_at = finding.get('UpdatedAt')
                 formatted_date = 'N/A'
                 if original_updated_at:
                     try:
                         if isinstance(original_updated_at, str):
-                            parsed_date = datetime.fromisoformat(original_updated_at.replace('Z', '+00:00'))
-                            formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
-                        else:
-                            # Assume it's a datetime object
+                            # Handle string timestamps
+                            if 'T' in original_updated_at:
+                                parsed_date = datetime.fromisoformat(original_updated_at.replace('Z', '+00:00'))
+                                formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
+                            else:
+                                formatted_date = original_updated_at
+                        elif hasattr(original_updated_at, 'strftime'):
+                            # Handle datetime objects
                             formatted_date = original_updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            formatted_date = str(original_updated_at)
                     except Exception:
                         formatted_date = str(original_updated_at)
                 
@@ -518,3 +526,217 @@ class SecurityMonitors:
             return 'MEDIUM'
         else:
             return 'LOW'
+    
+    def _get_security_recommendations(self):
+        """Generate security recommendations based on current AWS configuration"""
+        recommendations = []
+        
+        try:
+            # Check IAM security issues
+            users = self.aws_client.list_iam_users()
+            users_without_mfa = 0
+            old_access_keys = 0
+            
+            for user in users:
+                username = user['UserName']
+                mfa_devices = self.aws_client.get_user_mfa_devices(username)
+                if len(mfa_devices) == 0:
+                    users_without_mfa += 1
+                
+                access_keys = self.aws_client.list_access_keys(username)
+                for key in access_keys:
+                    key_age = datetime.utcnow() - key.get('CreateDate', datetime.utcnow()).replace(tzinfo=None)
+                    if key_age.days > 90:
+                        old_access_keys += 1
+            
+            if users_without_mfa > 0:
+                recommendations.append({
+                    'priority': 'HIGH',
+                    'category': 'IAM Security',
+                    'title': 'Enable MFA for IAM Users',
+                    'description': f'{users_without_mfa} users do not have MFA enabled. Enable multi-factor authentication for all users.',
+                    'impact': f'+{min(users_without_mfa * 5, 20)} points',
+                    'effort': 'Medium',
+                    'steps': [
+                        '1. Go to IAM Console → Users',
+                        '2. Select each user without MFA',
+                        '3. Go to Security credentials tab',
+                        '4. Assign MFA device (Virtual or Hardware)',
+                        '5. Verify MFA setup with test login'
+                    ]
+                })
+            
+            if old_access_keys > 0:
+                recommendations.append({
+                    'priority': 'MEDIUM',
+                    'category': 'IAM Security',
+                    'title': 'Rotate Old Access Keys',
+                    'description': f'{old_access_keys} access keys are older than 90 days. Regular rotation improves security.',
+                    'impact': f'+{min(old_access_keys * 3, 15)} points',
+                    'effort': 'Low',
+                    'steps': [
+                        '1. Create new access key for user',
+                        '2. Update applications to use new key',
+                        '3. Test applications with new credentials',
+                        '4. Deactivate old access key',
+                        '5. Delete old access key after verification'
+                    ]
+                })
+            
+            # Check network security issues
+            security_groups = self.aws_client.list_security_groups()
+            open_security_groups = 0
+            
+            for sg in security_groups:
+                for rule in sg.get('IpPermissions', []):
+                    for ip_range in rule.get('IpRanges', []):
+                        if ip_range.get('CidrIp') == '0.0.0.0/0':
+                            open_security_groups += 1
+                            break
+            
+            if open_security_groups > 0:
+                recommendations.append({
+                    'priority': 'HIGH',
+                    'category': 'Network Security',
+                    'title': 'Restrict Security Group Rules',
+                    'description': f'{open_security_groups} security groups allow access from anywhere (0.0.0.0/0). Restrict to specific IP ranges.',
+                    'impact': f'+{min(open_security_groups * 4, 25)} points',
+                    'effort': 'Medium',
+                    'steps': [
+                        '1. Review security groups with 0.0.0.0/0 rules',
+                        '2. Identify specific IP ranges needed',
+                        '3. Update inbound rules to use specific CIDRs',
+                        '4. Test connectivity after changes',
+                        '5. Document approved IP ranges'
+                    ]
+                })
+            
+            # Check S3 security issues
+            s3_buckets = self.aws_client.list_s3_buckets()
+            unencrypted_buckets = 0
+            public_buckets = 0
+            
+            for bucket in s3_buckets:
+                bucket_name = bucket['Name']
+                encryption_config = self.aws_client.get_bucket_encryption(bucket_name)
+                if encryption_config is None:
+                    unencrypted_buckets += 1
+                
+                public_access_block = self.aws_client.get_bucket_public_access_block(bucket_name)
+                if public_access_block is None or not all([
+                    public_access_block.get('BlockPublicAcls', False),
+                    public_access_block.get('IgnorePublicAcls', False),
+                    public_access_block.get('BlockPublicPolicy', False),
+                    public_access_block.get('RestrictPublicBuckets', False)
+                ]):
+                    public_buckets += 1
+            
+            if unencrypted_buckets > 0:
+                recommendations.append({
+                    'priority': 'HIGH',
+                    'category': 'Data Protection',
+                    'title': 'Enable S3 Bucket Encryption',
+                    'description': f'{unencrypted_buckets} S3 buckets do not have encryption enabled. Enable server-side encryption.',
+                    'impact': f'+{min(unencrypted_buckets * 6, 30)} points',
+                    'effort': 'Low',
+                    'steps': [
+                        '1. Go to S3 Console → Buckets',
+                        '2. Select unencrypted bucket',
+                        '3. Go to Properties → Default encryption',
+                        '4. Enable SSE-S3 or SSE-KMS encryption',
+                        '5. Apply to existing objects if needed'
+                    ]
+                })
+            
+            if public_buckets > 0:
+                recommendations.append({
+                    'priority': 'CRITICAL',
+                    'category': 'Data Protection',
+                    'title': 'Block S3 Public Access',
+                    'description': f'{public_buckets} S3 buckets may allow public access. Enable Block Public Access settings.',
+                    'impact': f'+{min(public_buckets * 8, 40)} points',
+                    'effort': 'Low',
+                    'steps': [
+                        '1. Go to S3 Console → Buckets',
+                        '2. Select bucket with public access',
+                        '3. Go to Permissions → Block public access',
+                        '4. Enable all four Block public access settings',
+                        '5. Verify application functionality'
+                    ]
+                })
+            
+            # Check CloudTrail configuration
+            trails = self.aws_client.describe_trails()
+            if len(trails) == 0:
+                recommendations.append({
+                    'priority': 'MEDIUM',
+                    'category': 'Monitoring',
+                    'title': 'Enable CloudTrail Logging',
+                    'description': 'No CloudTrail trails found. Enable CloudTrail for audit logging and compliance.',
+                    'impact': '+15 points',
+                    'effort': 'Medium',
+                    'steps': [
+                        '1. Go to CloudTrail Console',
+                        '2. Create new trail',
+                        '3. Enable logging for all regions',
+                        '4. Configure S3 bucket for log storage',
+                        '5. Enable log file validation'
+                    ]
+                })
+            
+            # Check GuardDuty status
+            detectors = self.aws_client.list_guardduty_detectors()
+            if len(detectors) == 0:
+                recommendations.append({
+                    'priority': 'MEDIUM',
+                    'category': 'Threat Detection',
+                    'title': 'Enable GuardDuty',
+                    'description': 'GuardDuty is not enabled. Enable threat detection service for better security monitoring.',
+                    'impact': '+10 points',
+                    'effort': 'Low',
+                    'steps': [
+                        '1. Go to GuardDuty Console',
+                        '2. Enable GuardDuty',
+                        '3. Accept service permissions',
+                        '4. Configure finding types',
+                        '5. Set up notifications for findings'
+                    ]
+                })
+            
+            # If no issues found, add general recommendations
+            if len(recommendations) == 0:
+                recommendations.append({
+                    'priority': 'LOW',
+                    'category': 'General',
+                    'title': 'Excellent Security Posture',
+                    'description': 'Your AWS configuration follows security best practices. Continue monitoring and consider advanced security features.',
+                    'impact': '+5 points',
+                    'effort': 'Low',
+                    'steps': [
+                        '1. Enable AWS Config for compliance monitoring',
+                        '2. Set up AWS Security Hub for centralized findings',
+                        '3. Consider AWS WAF for web applications',
+                        '4. Implement automated security scanning',
+                        '5. Regular security reviews and audits'
+                    ]
+                })
+            
+        except Exception as e:
+            print(f"Error generating recommendations: {str(e)}")
+            recommendations.append({
+                'priority': 'LOW',
+                'category': 'General',
+                'title': 'Review Security Configuration',
+                'description': 'Unable to automatically assess configuration. Perform manual security review.',
+                'impact': '+10 points',
+                'effort': 'Medium',
+                'steps': [
+                    '1. Review IAM users and permissions',
+                    '2. Audit security group rules',
+                    '3. Check S3 bucket configurations',
+                    '4. Verify logging and monitoring setup',
+                    '5. Enable additional security services'
+                ]
+            })
+        
+        return recommendations

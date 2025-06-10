@@ -214,6 +214,47 @@ def show_overview_tab(security_monitors, dashboard_components):
             st.dataframe(df_events, use_container_width=True)
         else:
             st.info("No recent security events found")
+        
+        # Security recommendations
+        st.subheader("🎯 Security Recommendations")
+        st.markdown("Implement these recommendations to improve your security score:")
+        
+        recommendations = overview_data.get('recommendations', [])
+        
+        if recommendations:
+            # Sort recommendations by priority
+            priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+            sorted_recommendations = sorted(recommendations, key=lambda x: priority_order.get(x['priority'], 4))
+            
+            for i, rec in enumerate(sorted_recommendations):
+                # Create expandable recommendation card
+                priority_color = {
+                    'CRITICAL': '🔴',
+                    'HIGH': '🟠', 
+                    'MEDIUM': '🟡',
+                    'LOW': '🟢'
+                }.get(rec['priority'], '⚪')
+                
+                with st.expander(f"{priority_color} {rec['title']} - {rec['impact']} ({rec['effort']} effort)", expanded=(i < 2)):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Category:** {rec['category']}")
+                        st.markdown(f"**Description:** {rec['description']}")
+                        
+                        st.markdown("**Implementation Steps:**")
+                        for step in rec['steps']:
+                            st.markdown(f"- {step}")
+                    
+                    with col2:
+                        st.markdown(f"**Priority:** {rec['priority']}")
+                        st.markdown(f"**Security Impact:** {rec['impact']}")
+                        st.markdown(f"**Implementation Effort:** {rec['effort']}")
+                        
+                        # Add completion checkbox (for UI purposes)
+                        st.checkbox(f"Mark as completed", key=f"rec_{i}")
+        else:
+            st.info("Unable to generate specific recommendations. Please ensure AWS services are properly configured.")
             
     except Exception as e:
         st.error(f"Error loading overview data: {str(e)}")
