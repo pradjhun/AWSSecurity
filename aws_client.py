@@ -6,31 +6,46 @@ import os
 class AWSClient:
     """AWS client wrapper for managing AWS service connections"""
     
-    def __init__(self, aws_access_key_id=None, aws_secret_access_key=None, region_name='us-east-1'):
-        """Initialize AWS client with credentials"""
+    def __init__(self, aws_access_key_id=None, aws_secret_access_key=None, region_name='us-east-1', selected_regions=None):
+        """Initialize AWS client with credentials and multi-region support"""
         self.aws_access_key_id = aws_access_key_id or os.getenv('AWS_ACCESS_KEY_ID')
         self.aws_secret_access_key = aws_secret_access_key or os.getenv('AWS_SECRET_ACCESS_KEY')
         self.region_name = region_name
+        self.selected_regions = selected_regions or [region_name]
         
-        # Initialize session
-        self.session = boto3.Session(
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            region_name=self.region_name
-        )
+        # Initialize sessions for each region
+        self.sessions = {}
+        for region in self.selected_regions:
+            self.sessions[region] = boto3.Session(
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                region_name=region
+            )
         
-        # Initialize service clients
+        # Initialize service clients by region
         self._clients = {}
     
-    def get_client(self, service_name):
-        """Get or create AWS service client"""
-        if service_name not in self._clients:
+    def get_client(self, service_name, region=None):
+        """Get or create AWS service client for specific region"""
+        region = region or self.region_name
+        client_key = f"{service_name}_{region}"
+        
+        if client_key not in self._clients:
             try:
-                self._clients[service_name] = self.session.client(service_name)
+                if region in self.sessions:
+                    self._clients[client_key] = self.sessions[region].client(service_name)
+                else:
+                    # Create session for new region if needed
+                    self.sessions[region] = boto3.Session(
+                        aws_access_key_id=self.aws_access_key_id,
+                        aws_secret_access_key=self.aws_secret_access_key,
+                        region_name=region
+                    )
+                    self._clients[client_key] = self.sessions[region].client(service_name)
             except Exception as e:
-                st.error(f"Error creating {service_name} client: {str(e)}")
+                print(f"Error creating {service_name} client for {region}: {str(e)}")
                 return None
-        return self._clients[service_name]
+        return self._clients[client_key]
     
     def test_connection(self):
         """Test AWS connection by making a simple API call"""
@@ -68,8 +83,35 @@ class AWSClient:
                 return [region['RegionName'] for region in response['Regions']]
             return []
         except Exception as e:
-            st.error(f"Error getting regions: {str(e)}")
-            return []
+            print(f"Error getting regions: {str(e)}")
+            return ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-1', 'eu-central-1']
+    
+    def update_selected_regions(self, new_regions):
+        """Update the list of selected regions for monitoring"""
+        self.selected_regions = new_regions
+        # Initialize sessions for new regions
+        for region in new_regions:
+            if region not in self.sessions:
+                self.sessions[region] = boto3.Session(
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    region_name=region
+                )
+    
+    def get_multi_region_data(self, service_method, service_name='ec2', **kwargs):
+        """Execute a service method across all selected regions"""
+        results = {}
+        for region in self.selected_regions:
+            try:
+                client = self.get_client(service_name, region)
+                if client and hasattr(client, service_method):
+                    method = getattr(client, service_method)
+                    results[region] = method(**kwargs)
+                else:
+                    results[region] = {'error': f'{service_method} not available'}
+            except Exception as e:
+                results[region] = {'error': str(e)}
+        return results
     
     # IAM methods
     def list_iam_users(self):

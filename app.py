@@ -65,11 +65,38 @@ def main():
             value=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
             type="password"
         )
-        aws_region = st.selectbox(
-            "AWS Region",
-            ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1", "ap-northeast-1"],
-            index=0
-        )
+        # Multi-region selection
+        st.subheader("🌍 Region Selection")
+        
+        available_regions = [
+            "us-east-1", "us-west-1", "us-west-2", 
+            "eu-west-1", "eu-central-1", "eu-west-2", "eu-west-3",
+            "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", 
+            "ap-northeast-2", "ap-south-1", "ca-central-1",
+            "sa-east-1", "af-south-1", "me-south-1"
+        ]
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            selected_regions = st.multiselect(
+                "Select Regions to Monitor",
+                options=available_regions,
+                default=["us-east-1"],
+                help="Monitor security across multiple AWS regions"
+            )
+        
+        with col2:
+            primary_region = st.selectbox(
+                "Primary Region",
+                options=selected_regions if selected_regions else ["us-east-1"],
+                index=0,
+                help="Primary region for global services"
+            )
+        
+        if not selected_regions:
+            st.warning("Select at least one region to monitor.")
+            st.stop()
         
         # Connect to AWS
         if st.button("Connect to AWS", type="primary"):
