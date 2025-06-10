@@ -459,6 +459,106 @@ def show_compliance_tab(security_monitors, dashboard_components):
             st.dataframe(df_compliance, use_container_width=True)
         else:
             st.info("No compliance rules data available")
+        
+        # Compliance standards reference
+        st.subheader("📋 Compliance Standards Reference")
+        st.markdown("The dashboard evaluates your AWS configuration against these compliance frameworks:")
+        
+        # Create tabs for different compliance standards
+        framework_tab1, framework_tab2, framework_tab3, framework_tab4 = st.tabs([
+            "CIS Benchmark", "AWS Foundational", "Industry Standards", "Custom Rules"
+        ])
+        
+        with framework_tab1:
+            st.markdown("### CIS AWS Foundations Benchmark v1.2.0")
+            st.markdown("**Identity and Access Management:**")
+            st.markdown("- 1.2: MFA enabled for all IAM users with console password")
+            st.markdown("- 1.4: Access keys rotated within 90 days")
+            st.markdown("- 1.12: Root user has no access keys")
+            st.markdown("- 1.13: MFA enabled for root user")
+            
+            st.markdown("**Logging and Monitoring:**")
+            st.markdown("- 2.1: CloudTrail enabled in all regions")
+            st.markdown("- 2.2: CloudTrail log file validation enabled")
+            st.markdown("- 2.7: CloudTrail logs encrypted at rest")
+            st.markdown("- 2.9: VPC Flow Logs enabled")
+            
+            st.markdown("**Networking:**")
+            st.markdown("- 4.1: No security groups allow ingress from 0.0.0.0/0 to port 22")
+            st.markdown("- 4.2: No security groups allow ingress from 0.0.0.0/0 to port 3389")
+            st.markdown("- 4.3: Default security group restricts all traffic")
+        
+        with framework_tab2:
+            st.markdown("### AWS Foundational Security Standard")
+            st.markdown("**Data Protection:**")
+            st.markdown("- S3.1: S3 buckets prohibit public read access")
+            st.markdown("- S3.2: S3 buckets prohibit public write access")
+            st.markdown("- S3.3: S3 buckets have server-side encryption enabled")
+            st.markdown("- RDS.3: RDS instances have encryption at rest enabled")
+            
+            st.markdown("**Network Security:**")
+            st.markdown("- EC2.2: VPC default security group restricts all traffic")
+            st.markdown("- EC2.13: Security groups do not allow unrestricted inbound traffic")
+            st.markdown("- EC2.14: Security groups do not allow unrestricted outbound traffic")
+            
+            st.markdown("**Compute Security:**")
+            st.markdown("- EC2.8: EC2 instances use IMDSv2")
+            st.markdown("- Lambda.1: Lambda functions prohibit public access")
+        
+        with framework_tab3:
+            st.markdown("### Industry Compliance Standards")
+            
+            st.markdown("**PCI DSS Requirements:**")
+            st.markdown("- Requirement 1: Install and maintain firewall configuration")
+            st.markdown("- Requirement 2: Do not use vendor-supplied defaults")
+            st.markdown("- Requirement 3: Protect stored cardholder data")
+            st.markdown("- Requirement 4: Encrypt transmission of cardholder data")
+            
+            st.markdown("**HIPAA Security Rules:**")
+            st.markdown("- Administrative Safeguards: Access management procedures")
+            st.markdown("- Physical Safeguards: Facility access controls")
+            st.markdown("- Technical Safeguards: Access control and audit controls")
+            
+            st.markdown("**SOC 2 Trust Principles:**")
+            st.markdown("- Security: Protection against unauthorized access")
+            st.markdown("- Availability: System operation and usability")
+            st.markdown("- Confidentiality: Information designated as confidential")
+        
+        with framework_tab4:
+            st.markdown("### Custom Organizational Rules")
+            st.markdown("**Cost Optimization:**")
+            st.markdown("- Unused security groups identification")
+            st.markdown("- Orphaned resources detection")
+            st.markdown("- Resource right-sizing recommendations")
+            
+            st.markdown("**Operational Excellence:**")
+            st.markdown("- Resource tagging compliance")
+            st.markdown("- Backup policy adherence")
+            st.markdown("- Change management controls")
+            
+            st.markdown("**Advanced Security:**")
+            st.markdown("- Privileged access reviews")
+            st.markdown("- Certificate expiration monitoring")
+            st.markdown("- Vulnerability assessment compliance")
+        
+        # Scoring methodology
+        st.subheader("🎯 Compliance Scoring Methodology")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Violation Impact:**")
+            st.markdown("- Critical: -10 points (max -50)")
+            st.markdown("- High: -5 points (max -30)")
+            st.markdown("- Medium: -3 points (max -15)")
+            st.markdown("- Low: -1 point (max -5)")
+        
+        with col2:
+            st.markdown("**Score Categories:**")
+            st.markdown("- 90-100: Excellent security posture")
+            st.markdown("- 80-89: Good security posture")
+            st.markdown("- 70-79: Adequate security posture")
+            st.markdown("- 60-69: Poor security posture")
+            st.markdown("- Below 60: Critical security issues")
             
     except Exception as e:
         st.error(f"Error loading compliance data: {str(e)}")

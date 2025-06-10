@@ -505,8 +505,20 @@ class SecurityMonitors:
         for finding in findings:
             updated_at = finding.get('UpdatedAt')
             if updated_at:
-                date = updated_at.strftime('%Y-%m-%d')
-                timeline[date] = timeline.get(date, 0) + 1
+                try:
+                    if isinstance(updated_at, str):
+                        if 'T' in updated_at:
+                            parsed_date = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                            date = parsed_date.strftime('%Y-%m-%d')
+                        else:
+                            date = updated_at
+                    elif hasattr(updated_at, 'strftime'):
+                        date = updated_at.strftime('%Y-%m-%d')
+                    else:
+                        date = str(updated_at)
+                    timeline[date] = timeline.get(date, 0) + 1
+                except Exception:
+                    pass  # Skip invalid dates
         
         # Sort by date
         sorted_timeline = sorted(timeline.items())
