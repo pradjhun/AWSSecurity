@@ -266,6 +266,10 @@ def show_overview_tab(security_monitors, dashboard_components):
             security_groups = overview_data.get('security_groups', 0)
             st.metric("Security Groups", security_groups)
         
+        with col5:
+            s3_buckets = overview_data.get('s3_buckets', 0)
+            st.metric("S3 Buckets", s3_buckets)
+        
         # Charts row
         col1, col2 = st.columns(2)
         
@@ -277,8 +281,10 @@ def show_overview_tab(security_monitors, dashboard_components):
                 st.info("Security trends data not available")
         
         with col2:
-            # Alert distribution
-            if overview_data.get('alert_distribution'):
+            # Alert distribution or region distribution
+            if overview_data.get('total_regions', 1) > 1 and overview_data.get('region_breakdown'):
+                dashboard_components.create_region_distribution_chart(overview_data['region_breakdown'])
+            elif overview_data.get('alert_distribution'):
                 dashboard_components.create_alert_distribution_chart(overview_data['alert_distribution'])
             else:
                 st.info("Alert distribution data not available")

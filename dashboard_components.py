@@ -484,6 +484,61 @@ class DashboardComponents:
         except Exception as e:
             st.error(f"Error creating alert badge: {str(e)}")
     
+    def create_region_distribution_chart(self, region_data):
+        """Create multi-region resource distribution chart"""
+        if not region_data:
+            return None
+            
+        try:
+            regions = []
+            security_groups = []
+            vpcs = []
+            
+            for region, data in region_data.items():
+                if data.get('status') == 'active':
+                    regions.append(region)
+                    security_groups.append(data.get('security_groups', 0))
+                    vpcs.append(data.get('vpcs', 0))
+            
+            if not regions:
+                st.info("No active regions to display")
+                return None
+            
+            fig = go.Figure()
+            
+            # Add security groups bars
+            fig.add_trace(go.Bar(
+                name='Security Groups',
+                x=regions,
+                y=security_groups,
+                marker_color='#1f77b4'
+            ))
+            
+            # Add VPCs bars  
+            fig.add_trace(go.Bar(
+                name='VPCs',
+                x=regions,
+                y=vpcs,
+                marker_color='#ff7f0e'
+            ))
+            
+            fig.update_layout(
+                title='Resource Distribution Across Regions',
+                xaxis_title='AWS Regions',
+                yaxis_title='Resource Count',
+                barmode='group',
+                height=400,
+                showlegend=True,
+                font=dict(size=12)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            return fig
+            
+        except Exception as e:
+            st.error(f"Error creating region distribution chart: {str(e)}")
+            return None
+    
     def _get_severity_color(self, severity):
         """Get color for severity level"""
         severity_colors = {
