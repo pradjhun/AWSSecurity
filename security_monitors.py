@@ -13,10 +13,40 @@ class SecurityMonitors:
     def get_security_overview(self):
         """Get overall security overview data"""
         try:
-            # Get basic counts
+            # Get global service counts (IAM and S3 are global)
             iam_users = len(self.aws_client.list_iam_users())
-            security_groups = len(self.aws_client.list_security_groups())
             s3_buckets = len(self.aws_client.list_s3_buckets())
+            
+            # Aggregate regional data
+            total_security_groups = 0
+            total_vpcs = 0
+            region_breakdown = {}
+            
+            for region in self.aws_client.selected_regions:
+                try:
+                    security_groups = self.aws_client.list_security_groups()
+                    vpcs = self.aws_client.list_vpcs()
+                    
+                    region_sg_count = len(security_groups) if security_groups else 0
+                    region_vpc_count = len(vpcs) if vpcs else 0
+                    
+                    total_security_groups += region_sg_count
+                    total_vpcs += region_vpc_count
+                    
+                    region_breakdown[region] = {
+                        'security_groups': region_sg_count,
+                        'vpcs': region_vpc_count,
+                        'status': 'active'
+                    }
+                except Exception as e:
+                    region_breakdown[region] = {
+                        'security_groups': 0,
+                        'vpcs': 0,
+                        'status': 'error',
+                        'error': str(e)
+                    }
+            
+            security_groups = total_security_groups
             
             # Get GuardDuty findings count
             critical_alerts = 0
@@ -45,8 +75,12 @@ class SecurityMonitors:
                 'iam_users': iam_users,
                 'security_groups': security_groups,
                 's3_buckets': s3_buckets,
+                'vpcs': total_vpcs,
                 'critical_alerts': critical_alerts,
                 'recent_events': formatted_events,
+                'region_breakdown': region_breakdown,
+                'selected_regions': self.aws_client.selected_regions,
+                'total_regions': len(self.aws_client.selected_regions),
                 'security_trends': self._get_security_trends(),
                 'alert_distribution': self._get_alert_distribution(),
                 'recommendations': self._get_security_recommendations()

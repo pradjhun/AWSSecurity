@@ -105,8 +105,11 @@ def main():
                     st.session_state.aws_client = AWSClient(
                         aws_access_key_id=aws_access_key,
                         aws_secret_access_key=aws_secret_key,
-                        region_name=aws_region
+                        region_name=primary_region,
+                        selected_regions=selected_regions
                     )
+                    st.session_state.selected_regions = selected_regions
+                    st.session_state.primary_region = primary_region
                     
                     if st.session_state.aws_client.test_connection():
                         st.session_state.connected = True
@@ -202,8 +205,42 @@ def show_overview_tab(security_monitors, dashboard_components):
         # Get overview data
         overview_data = security_monitors.get_security_overview()
         
+        # Multi-region overview
+        if overview_data.get('total_regions', 1) > 1:
+            st.subheader("🌍 Multi-Region Overview")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Regions", overview_data.get('total_regions', 1))
+            with col2:
+                active_regions = len([r for r in overview_data.get('region_breakdown', {}).values() if r.get('status') == 'active'])
+                st.metric("Active Regions", active_regions)
+            with col3:
+                selected_regions = overview_data.get('selected_regions', [])
+                st.metric("Monitored Regions", len(selected_regions))
+            
+            # Region breakdown table
+            region_breakdown = overview_data.get('region_breakdown', {})
+            if region_breakdown:
+                st.write("**Region Resource Distribution:**")
+                
+                region_data = []
+                for region, data in region_breakdown.items():
+                    region_data.append({
+                        'Region': region,
+                        'Security Groups': data.get('security_groups', 0),
+                        'VPCs': data.get('vpcs', 0),
+                        'Status': '✅ Active' if data.get('status') == 'active' else '❌ Error'
+                    })
+                
+                if region_data:
+                    df = pd.DataFrame(region_data)
+                    st.dataframe(df, use_container_width=True)
+            
+            st.divider()
+        
         # Security score and key metrics
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
             security_score = calculate_security_score(overview_data)
