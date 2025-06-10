@@ -13,6 +13,7 @@ from dashboard_components import DashboardComponents
 from utils import format_timestamp, calculate_security_score, get_severity_color
 from enhanced_security_checks import EnhancedSecurityChecks
 from export_manager import ExportManager
+from trivy_integration import TrivyIntegratedScanner
 
 # Page configuration
 st.set_page_config(
@@ -159,7 +160,7 @@ def main():
     dashboard_components = DashboardComponents()
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
         "🏠 Overview",
         "👤 IAM Security", 
         "🌐 Network Security",
@@ -167,6 +168,7 @@ def main():
         "📋 Compliance",
         "🚨 Alerts & Threats",
         "🔍 Enhanced Checks",
+        "🔐 Vulnerability Scanner",
         "🤖 AI Recommendations",
         "🧠 OWASP LLM Top 10",
         "📤 Export Reports"
@@ -194,12 +196,15 @@ def main():
         show_enhanced_checks_tab(security_monitors, dashboard_components)
     
     with tab8:
-        show_ai_recommendations_tab(security_monitors, dashboard_components)
+        show_vulnerability_scanner_tab(security_monitors, dashboard_components)
     
     with tab9:
-        show_owasp_llm_tab(security_monitors, dashboard_components)
+        show_ai_recommendations_tab(security_monitors, dashboard_components)
     
     with tab10:
+        show_owasp_llm_tab(security_monitors, dashboard_components)
+    
+    with tab11:
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
@@ -1090,6 +1095,343 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                     
     except Exception as e:
         st.error(f"Error running enhanced security checks: {str(e)}")
+
+def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
+    st.header("🔐 Trivy-Inspired Vulnerability Scanner")
+    st.markdown("Comprehensive vulnerability scanning for containers, infrastructure, and secrets")
+    
+    try:
+        # Initialize Trivy scanner
+        trivy_scanner = TrivyIntegratedScanner(st.session_state.aws_client)
+        
+        # Scanner controls
+        st.subheader("🎯 Scan Configuration")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            scan_containers = st.checkbox("Container Image Vulnerabilities", value=True)
+            scan_infrastructure = st.checkbox("Infrastructure Misconfigurations", value=True)
+            scan_secrets = st.checkbox("Secret Detection", value=True)
+        
+        with col2:
+            scan_licenses = st.checkbox("License Compliance", value=True)
+            scan_kubernetes = st.checkbox("Kubernetes Security", value=True)
+            generate_sbom = st.checkbox("Generate SBOM", value=False)
+        
+        # Advanced scan options
+        with st.expander("🔧 Advanced Options"):
+            severity_threshold = st.selectbox(
+                "Minimum Severity Level:",
+                ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+                index=1
+            )
+            
+            max_findings = st.slider(
+                "Maximum findings to display:",
+                min_value=10,
+                max_value=200,
+                value=50
+            )
+            
+            scan_timeout = st.slider(
+                "Scan timeout (minutes):",
+                min_value=1,
+                max_value=15,
+                value=5
+            )
+        
+        # Run comprehensive scan
+        if st.button("🚀 Run Comprehensive Vulnerability Scan", type="primary"):
+            with st.spinner("Running comprehensive security scan..."):
+                scan_results = trivy_scanner.run_comprehensive_vulnerability_scan()
+                
+                # Store results in session state
+                st.session_state.trivy_scan_results = scan_results
+                
+                st.success("Vulnerability scan completed successfully!")
+        
+        # Display scan results if available
+        if hasattr(st.session_state, 'trivy_scan_results') and st.session_state.trivy_scan_results:
+            scan_results = st.session_state.trivy_scan_results
+            
+            # Scan summary dashboard
+            st.subheader("📊 Scan Summary")
+            
+            summary = scan_results.get('scan_summary', {})
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric(
+                    "Total Vulnerabilities",
+                    summary.get('total_vulnerabilities', 0),
+                    delta=None
+                )
+            
+            with col2:
+                st.metric(
+                    "Misconfigurations",
+                    summary.get('total_misconfigurations', 0),
+                    delta=None
+                )
+            
+            with col3:
+                st.metric(
+                    "Secrets Found",
+                    summary.get('total_secrets', 0),
+                    delta=None
+                )
+            
+            with col4:
+                st.metric(
+                    "License Issues",
+                    summary.get('total_license_issues', 0),
+                    delta=None
+                )
+            
+            # Severity breakdown chart
+            if summary.get('severity_breakdown'):
+                st.subheader("📈 Severity Distribution")
+                
+                severity_data = summary['severity_breakdown']
+                fig = dashboard_components.create_alert_distribution_chart({
+                    'labels': list(severity_data.keys()),
+                    'values': list(severity_data.values())
+                })
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Detailed findings tabs
+            st.subheader("🔍 Detailed Findings")
+            
+            findings_tab1, findings_tab2, findings_tab3, findings_tab4 = st.tabs([
+                "🐛 Vulnerabilities",
+                "⚠️ Misconfigurations", 
+                "🔑 Secrets",
+                "📄 Licenses"
+            ])
+            
+            with findings_tab1:
+                vulnerabilities = scan_results.get('vulnerabilities', [])
+                if vulnerabilities:
+                    # Filter by severity
+                    filtered_vulns = [v for v in vulnerabilities 
+                                    if v.get('severity', '').upper() in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'][
+                                        ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].index(severity_threshold):]]
+                    
+                    st.write(f"Found {len(filtered_vulns)} vulnerabilities (severity >= {severity_threshold})")
+                    
+                    for vuln in filtered_vulns[:max_findings]:
+                        with st.expander(f"{vuln.get('severity', 'UNKNOWN')} - {vuln.get('title', 'Unknown Vulnerability')}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"**ID:** {vuln.get('id', 'N/A')}")
+                                st.write(f"**Package:** {vuln.get('package', 'N/A')}")
+                                st.write(f"**Current Version:** {vuln.get('version', 'N/A')}")
+                                st.write(f"**Fixed Version:** {vuln.get('fixed_version', 'N/A')}")
+                            
+                            with col2:
+                                st.write(f"**Repository:** {vuln.get('repository', 'N/A')}")
+                                st.write(f"**Image Tag:** {vuln.get('image_tag', 'N/A')}")
+                                st.write(f"**Type:** {vuln.get('type', 'N/A')}")
+                                st.write(f"**Scanner:** {vuln.get('scanner', 'N/A')}")
+                            
+                            st.write(f"**Description:** {vuln.get('description', 'No description available')}")
+                else:
+                    st.info("No vulnerabilities found in container images")
+            
+            with findings_tab2:
+                misconfigurations = scan_results.get('misconfigurations', [])
+                if misconfigurations:
+                    st.write(f"Found {len(misconfigurations)} infrastructure misconfigurations")
+                    
+                    for misconfig in misconfigurations[:max_findings]:
+                        severity_color = "🔴" if misconfig.get('severity') == 'CRITICAL' else \
+                                       "🟠" if misconfig.get('severity') == 'HIGH' else \
+                                       "🟡" if misconfig.get('severity') == 'MEDIUM' else "🟢"
+                        
+                        with st.expander(f"{severity_color} {misconfig.get('title', 'Unknown Misconfiguration')}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"**Rule ID:** {misconfig.get('id', 'N/A')}")
+                                st.write(f"**Severity:** {misconfig.get('severity', 'N/A')}")
+                                st.write(f"**Resource:** {misconfig.get('resource', 'N/A')}")
+                                st.write(f"**Type:** {misconfig.get('resource_type', 'N/A')}")
+                            
+                            with col2:
+                                st.write(f"**Policy:** {misconfig.get('policy', 'N/A')}")
+                                st.write(f"**Scanner:** {misconfig.get('scanner', 'N/A')}")
+                            
+                            st.write(f"**Description:** {misconfig.get('description', 'No description available')}")
+                            st.write(f"**Remediation:** {misconfig.get('remediation', 'No remediation guidance available')}")
+                else:
+                    st.info("No infrastructure misconfigurations detected")
+            
+            with findings_tab3:
+                secrets = scan_results.get('secrets', [])
+                if secrets:
+                    st.warning(f"Found {len(secrets)} potential secrets or sensitive data exposures")
+                    
+                    for secret in secrets[:max_findings]:
+                        with st.expander(f"🔑 {secret.get('title', 'Unknown Secret')}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"**ID:** {secret.get('id', 'N/A')}")
+                                st.write(f"**Severity:** {secret.get('severity', 'N/A')}")
+                                st.write(f"**Resource:** {secret.get('resource', 'N/A')}")
+                                st.write(f"**Type:** {secret.get('resource_type', 'N/A')}")
+                            
+                            with col2:
+                                st.write(f"**Location:** {secret.get('location', 'N/A')}")
+                                st.write(f"**Scanner:** {secret.get('scanner', 'N/A')}")
+                            
+                            st.write(f"**Description:** {secret.get('description', 'No description available')}")
+                            st.write(f"**Remediation:** {secret.get('remediation', 'No remediation guidance available')}")
+                else:
+                    st.success("No secrets or sensitive data exposures detected")
+            
+            with findings_tab4:
+                licenses = scan_results.get('licenses', [])
+                if licenses:
+                    st.write(f"Found {len(licenses)} license compliance issues")
+                    
+                    for license_issue in licenses[:max_findings]:
+                        with st.expander(f"📄 {license_issue.get('title', 'Unknown License Issue')}"):
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write(f"**ID:** {license_issue.get('id', 'N/A')}")
+                                st.write(f"**Severity:** {license_issue.get('severity', 'N/A')}")
+                                st.write(f"**Resource:** {license_issue.get('resource', 'N/A')}")
+                                st.write(f"**Type:** {license_issue.get('resource_type', 'N/A')}")
+                            
+                            with col2:
+                                st.write(f"**License Type:** {license_issue.get('license_type', 'N/A')}")
+                                st.write(f"**Scanner:** {license_issue.get('scanner', 'N/A')}")
+                            
+                            st.write(f"**Description:** {license_issue.get('description', 'No description available')}")
+                            st.write(f"**Remediation:** {license_issue.get('remediation', 'No remediation guidance available')}")
+                else:
+                    st.success("No license compliance issues detected")
+            
+            # Security recommendations
+            st.subheader("🎯 Security Recommendations")
+            
+            recommendations = trivy_scanner.get_security_recommendations()
+            if recommendations:
+                for rec in recommendations:
+                    priority_color = "🔴" if rec.get('priority') == 'CRITICAL' else \
+                                   "🟠" if rec.get('priority') == 'HIGH' else \
+                                   "🟡" if rec.get('priority') == 'MEDIUM' else "🟢"
+                    
+                    with st.expander(f"{priority_color} {rec.get('title', 'Security Recommendation')}"):
+                        st.write(f"**Priority:** {rec.get('priority', 'MEDIUM')}")
+                        st.write(f"**Description:** {rec.get('description', 'No description available')}")
+                        
+                        actions = rec.get('actions', [])
+                        if actions:
+                            st.write("**Recommended Actions:**")
+                            for action in actions:
+                                st.write(f"• {action}")
+            
+            # Export options
+            st.subheader("📤 Export Scan Results")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📄 Export as JSON"):
+                    json_data = trivy_scanner.export_scan_results("json")
+                    if json_data:
+                        st.download_button(
+                            label="📥 Download JSON Report",
+                            data=json_data,
+                            file_name=f"trivy_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json"
+                        )
+            
+            with col2:
+                if st.button("📊 Export as CSV"):
+                    csv_data = trivy_scanner.export_scan_results("csv")
+                    if csv_data:
+                        st.download_button(
+                            label="📥 Download CSV Report",
+                            data=csv_data,
+                            file_name=f"trivy_scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv"
+                        )
+            
+            # SBOM section
+            if generate_sbom and scan_results.get('sbom'):
+                st.subheader("📋 Software Bill of Materials (SBOM)")
+                
+                sbom_data = scan_results.get('sbom', {})
+                components = sbom_data.get('components', [])
+                
+                if components:
+                    st.write(f"Found {len(components)} software components")
+                    
+                    # Component summary table
+                    df_components = pd.DataFrame(components)
+                    if not df_components.empty:
+                        st.dataframe(df_components, use_container_width=True)
+                    
+                    # Export SBOM
+                    if st.button("📥 Download SBOM"):
+                        sbom_json = json.dumps(sbom_data, indent=2, default=str)
+                        st.download_button(
+                            label="📥 Download SBOM (JSON)",
+                            data=sbom_json,
+                            file_name=f"sbom_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json"
+                        )
+                else:
+                    st.info("No software components detected for SBOM generation")
+        
+        else:
+            st.info("Click 'Run Comprehensive Vulnerability Scan' to start scanning your AWS infrastructure")
+            
+            # Feature overview
+            st.subheader("🌟 Scanner Capabilities")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                **Container Security:**
+                • CVE vulnerability detection
+                • Multi-language package scanning
+                • Container image analysis
+                • Base image security assessment
+                
+                **Infrastructure Security:**
+                • S3 bucket misconfigurations
+                • Security group analysis
+                • IAM policy review
+                • Lambda function security
+                """)
+            
+            with col2:
+                st.markdown("""
+                **Secret Detection:**
+                • AWS credentials scanning
+                • API key detection
+                • Certificate analysis
+                • Environment variable review
+                
+                **Compliance & Licensing:**
+                • License compatibility checking
+                • Commercial license detection
+                • Open source compliance
+                • SBOM generation
+                """)
+    
+    except Exception as e:
+        st.error(f"Error in vulnerability scanner: {str(e)}")
+        st.info("Please ensure proper AWS connectivity and try again")
 
 def show_ai_recommendations_tab(security_monitors, dashboard_components):
     st.header("🤖 AI-Powered Security Recommendations")
