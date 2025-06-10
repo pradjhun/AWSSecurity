@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import os
 import yaml
+from vulnerability_database import VulnerabilityDatabase, VulnerabilityAlerting
 
 class TrivyIntegratedScanner:
     """
@@ -25,7 +26,9 @@ class TrivyIntegratedScanner:
     def __init__(self, aws_client):
         self.aws_client = aws_client
         self.scan_results = {}
-        self.vulnerability_database = self._initialize_vulnerability_database()
+        self.vulnerability_database = VulnerabilityDatabase()
+        self.alerting_system = VulnerabilityAlerting()
+        self.legacy_vuln_db = self._initialize_vulnerability_database()
         
     def _initialize_vulnerability_database(self):
         """Initialize vulnerability database with common CVE patterns"""
@@ -96,6 +99,16 @@ class TrivyIntegratedScanner:
             
             # Generate scan summary
             scan_results["scan_summary"] = self._generate_scan_summary(scan_results)
+            
+            # Enhanced vulnerability analysis with database
+            scan_results["vulnerability_analysis"] = self._analyze_vulnerabilities_with_database(scan_results)
+            
+            # Check for security alerts
+            alerts = self.alerting_system.check_alert_conditions(scan_results)
+            scan_results["security_alerts"] = alerts
+            
+            if alerts:
+                scan_results["alert_summary"] = self.alerting_system.generate_alert_summary(alerts)
             
         except Exception as e:
             st.error(f"Error during comprehensive vulnerability scan: {str(e)}")
@@ -923,3 +936,238 @@ class TrivyIntegratedScanner:
             })
         
         return recommendations
+
+    def _analyze_vulnerabilities_with_database(self, scan_results):
+        """Enhanced vulnerability analysis using comprehensive database"""
+        analysis = {
+            "detailed_cve_analysis": [],
+            "exploit_intelligence": {},
+            "patch_recommendations": [],
+            "risk_assessment": {},
+            "trending_vulnerabilities": []
+        }
+        
+        vulnerabilities = scan_results.get('vulnerabilities', [])
+        
+        for vuln in vulnerabilities:
+            cve_id = vuln.get('id', '')
+            package_name = vuln.get('package', '')
+            package_version = vuln.get('version', '')
+            
+            # Get detailed CVE information from database
+            cve_details = self.vulnerability_database.get_vulnerability_details(cve_id)
+            
+            # Enhanced vulnerability record
+            enhanced_vuln = {
+                **vuln,
+                "cvss_v3": cve_details.get('cvss_v3', {}),
+                "threat_intelligence": cve_details.get('threat_intelligence', {}),
+                "known_exploited": cve_details.get('known_exploited', False),
+                "exploit_available": cve_details.get('exploit_available', False),
+                "patch_available": cve_details.get('patch_available', False),
+                "vendor_advisory": cve_details.get('vendor_advisory', ''),
+                "references": cve_details.get('references', [])
+            }
+            
+            analysis["detailed_cve_analysis"].append(enhanced_vuln)
+            
+            # Track exploit intelligence
+            if cve_details.get('known_exploited', False):
+                analysis["exploit_intelligence"][cve_id] = {
+                    "threat_actors": cve_details.get('threat_intelligence', {}).get('threat_actors', []),
+                    "exploited_in_wild": True,
+                    "ransomware_usage": cve_details.get('threat_intelligence', {}).get('ransomware_usage', False)
+                }
+            
+            # Generate patch recommendations
+            if package_name and package_version:
+                package_vulns = self.vulnerability_database.get_package_vulnerabilities(
+                    package_name, package_version, 'generic'
+                )
+                
+                for pkg_vuln in package_vulns:
+                    if pkg_vuln['cve_id'] == cve_id:
+                        analysis["patch_recommendations"].append({
+                            "package": package_name,
+                            "current_version": package_version,
+                            "fixed_versions": pkg_vuln.get('fixed_versions', []),
+                            "cve_id": cve_id,
+                            "priority": "CRITICAL" if pkg_vuln.get('known_exploited', False) else vuln.get('severity', 'MEDIUM')
+                        })
+        
+        # Generate comprehensive vulnerability report
+        vuln_report = self.vulnerability_database.generate_vulnerability_report(scan_results)
+        analysis["risk_assessment"] = vuln_report
+        
+        # Get vulnerability trends
+        trends = self.vulnerability_database.get_vulnerability_trends(30)
+        analysis["trending_vulnerabilities"] = trends
+        
+        return analysis
+
+    def get_real_time_monitoring_data(self):
+        """Get real-time vulnerability monitoring data"""
+        monitoring_data = {
+            "scan_status": "active" if self.scan_results else "idle",
+            "last_scan_time": self.scan_results.get('timestamp', 'Never'),
+            "active_alerts": len(self.scan_results.get('security_alerts', [])),
+            "critical_vulnerabilities": len([
+                v for v in self.scan_results.get('vulnerabilities', [])
+                if v.get('severity') == 'CRITICAL'
+            ]),
+            "exploitable_vulnerabilities": len([
+                v for v in self.scan_results.get('vulnerabilities', [])
+                if v.get('exploit_available', False)
+            ]),
+            "scan_coverage": self.scan_results.get('scan_summary', {}).get('scan_coverage', {}),
+            "next_scheduled_scan": (datetime.now() + timedelta(hours=24)).isoformat()
+        }
+        
+        return monitoring_data
+
+    def generate_executive_dashboard_data(self):
+        """Generate executive-level dashboard data for security overview"""
+        if not self.scan_results:
+            return None
+        
+        vulnerability_analysis = self.scan_results.get('vulnerability_analysis', {})
+        risk_assessment = vulnerability_analysis.get('risk_assessment', {})
+        
+        executive_data = {
+            "security_posture_score": max(0, 100 - risk_assessment.get('risk_score', 0)),
+            "total_findings": len(self.scan_results.get('vulnerabilities', [])) + 
+                            len(self.scan_results.get('misconfigurations', [])),
+            "critical_issues": len([
+                v for v in self.scan_results.get('vulnerabilities', [])
+                if v.get('severity') == 'CRITICAL'
+            ]) + len([
+                m for m in self.scan_results.get('misconfigurations', [])
+                if m.get('severity') == 'CRITICAL'
+            ]),
+            "compliance_status": self._calculate_compliance_percentage(),
+            "trending_threats": vulnerability_analysis.get('trending_vulnerabilities', {}).get('top_vulnerable_packages', [])[:3],
+            "immediate_actions": self._get_immediate_actions(),
+            "security_alerts": self.scan_results.get('security_alerts', []),
+            "scan_timestamp": self.scan_results.get('timestamp', ''),
+            "coverage_summary": self._get_coverage_summary()
+        }
+        
+        return executive_data
+
+    def _calculate_compliance_percentage(self):
+        """Calculate overall compliance percentage"""
+        total_checks = (len(self.scan_results.get('vulnerabilities', [])) + 
+                       len(self.scan_results.get('misconfigurations', [])))
+        
+        if total_checks == 0:
+            return 100
+        
+        critical_high_issues = len([
+            item for item in (self.scan_results.get('vulnerabilities', []) + 
+                            self.scan_results.get('misconfigurations', []))
+            if item.get('severity') in ['CRITICAL', 'HIGH']
+        ])
+        
+        compliance_percentage = max(0, 100 - (critical_high_issues / total_checks * 100))
+        return round(compliance_percentage, 1)
+
+    def _get_immediate_actions(self):
+        """Get list of immediate actions required"""
+        actions = []
+        
+        # Critical vulnerabilities
+        critical_vulns = [v for v in self.scan_results.get('vulnerabilities', [])
+                         if v.get('severity') == 'CRITICAL']
+        if critical_vulns:
+            actions.append(f"Patch {len(critical_vulns)} critical vulnerabilities immediately")
+        
+        # Exploitable vulnerabilities
+        exploitable_vulns = [v for v in self.scan_results.get('vulnerabilities', [])
+                            if v.get('exploit_available', False)]
+        if exploitable_vulns:
+            actions.append(f"Address {len(exploitable_vulns)} vulnerabilities with known exploits")
+        
+        # Critical misconfigurations
+        critical_misconfigs = [m for m in self.scan_results.get('misconfigurations', [])
+                              if m.get('severity') == 'CRITICAL']
+        if critical_misconfigs:
+            actions.append(f"Fix {len(critical_misconfigs)} critical infrastructure misconfigurations")
+        
+        # Secrets exposure
+        secrets = self.scan_results.get('secrets', [])
+        if secrets:
+            actions.append(f"Secure {len(secrets)} exposed secrets or credentials")
+        
+        if not actions:
+            actions.append("No immediate critical actions required")
+        
+        return actions[:5]  # Limit to top 5 actions
+
+    def _get_coverage_summary(self):
+        """Get scan coverage summary"""
+        coverage = self.scan_results.get('scan_summary', {}).get('scan_coverage', {})
+        
+        covered_areas = sum(1 for area, status in coverage.items() if status)
+        total_areas = len(coverage)
+        
+        coverage_percentage = (covered_areas / total_areas * 100) if total_areas > 0 else 0
+        
+        return {
+            "percentage": round(coverage_percentage, 1),
+            "covered_areas": covered_areas,
+            "total_areas": total_areas,
+            "areas": coverage
+        }
+
+    def enable_continuous_monitoring(self, interval_hours=24):
+        """Enable continuous vulnerability monitoring"""
+        monitoring_config = {
+            "enabled": True,
+            "interval_hours": interval_hours,
+            "alert_thresholds": self.alerting_system.alert_thresholds,
+            "scan_types": ["vulnerabilities", "misconfigurations", "secrets"],
+            "notification_channels": ["dashboard", "email"],
+            "auto_remediation": False,
+            "compliance_tracking": True
+        }
+        
+        return monitoring_config
+
+    def get_vulnerability_trends_analysis(self):
+        """Get detailed vulnerability trends analysis"""
+        if not self.scan_results:
+            return None
+        
+        vulnerability_analysis = self.scan_results.get('vulnerability_analysis', {})
+        trends = vulnerability_analysis.get('trending_vulnerabilities', {})
+        
+        return {
+            "vulnerability_timeline": trends.get('dates', []),
+            "new_vulnerabilities_trend": trends.get('new_vulnerabilities', []),
+            "critical_vulnerabilities_trend": trends.get('critical_vulnerabilities', []),
+            "exploit_timeline": trends.get('exploit_timeline', []),
+            "severity_distribution": trends.get('severity_distribution', {}),
+            "top_vulnerable_packages": trends.get('top_vulnerable_packages', []),
+            "prediction": self._predict_vulnerability_trends(trends)
+        }
+
+    def _predict_vulnerability_trends(self, trends_data):
+        """Predict vulnerability trends based on historical data"""
+        # Simple trend prediction based on recent data
+        new_vulns = trends_data.get('new_vulnerabilities', [])
+        if len(new_vulns) < 7:
+            return {"prediction": "Insufficient data for trend prediction"}
+        
+        recent_avg = sum(new_vulns[-7:]) / 7
+        overall_avg = sum(new_vulns) / len(new_vulns)
+        
+        trend_direction = "increasing" if recent_avg > overall_avg else "decreasing"
+        trend_magnitude = abs(recent_avg - overall_avg) / overall_avg * 100
+        
+        return {
+            "prediction": f"Vulnerability discovery rate is {trend_direction}",
+            "magnitude": round(trend_magnitude, 1),
+            "weekly_average": round(recent_avg, 1),
+            "overall_average": round(overall_avg, 1),
+            "confidence": "medium" if len(new_vulns) >= 14 else "low"
+        }

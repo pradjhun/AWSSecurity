@@ -14,6 +14,7 @@ from utils import format_timestamp, calculate_security_score, get_severity_color
 from enhanced_security_checks import EnhancedSecurityChecks
 from export_manager import ExportManager
 from trivy_integration import TrivyIntegratedScanner
+import json
 
 # Page configuration
 st.set_page_config(
@@ -1317,6 +1318,80 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
                 else:
                     st.success("No license compliance issues detected")
             
+            # Real-time Security Alerts
+            if scan_results.get('security_alerts'):
+                st.subheader("🚨 Security Alerts")
+                
+                alerts = scan_results.get('security_alerts', [])
+                for alert in alerts:
+                    alert_type = alert.get('type', 'UNKNOWN')
+                    severity = alert.get('severity', 'MEDIUM')
+                    
+                    if severity == 'CRITICAL':
+                        st.error(f"**{alert_type}:** {alert.get('message', '')}")
+                    elif severity == 'HIGH':
+                        st.warning(f"**{alert_type}:** {alert.get('message', '')}")
+                    else:
+                        st.info(f"**{alert_type}:** {alert.get('message', '')}")
+                    
+                    st.write(f"**Action Required:** {alert.get('action_required', 'Review and assess')}")
+                    st.write(f"**Timestamp:** {alert.get('timestamp', '')}")
+                    st.divider()
+            
+            # Enhanced Vulnerability Analysis
+            if scan_results.get('vulnerability_analysis'):
+                st.subheader("🔬 Enhanced Vulnerability Analysis")
+                
+                vuln_analysis = scan_results.get('vulnerability_analysis', {})
+                risk_assessment = vuln_analysis.get('risk_assessment', {})
+                
+                # Risk score display
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    risk_score = risk_assessment.get('risk_score', 0)
+                    st.metric("Risk Score", f"{risk_score}/100", 
+                             delta=f"-{100-risk_score}" if risk_score < 100 else None)
+                
+                with col2:
+                    avg_cvss = risk_assessment.get('average_cvss', 0)
+                    st.metric("Average CVSS", f"{avg_cvss:.1f}", 
+                             delta=f"+{avg_cvss-5:.1f}" if avg_cvss > 5 else f"{avg_cvss-5:.1f}")
+                
+                with col3:
+                    exploitable = risk_assessment.get('exploitable_vulnerabilities', 0)
+                    st.metric("Exploitable", exploitable,
+                             delta=f"+{exploitable}" if exploitable > 0 else None)
+                
+                # Exploit intelligence
+                exploit_intel = vuln_analysis.get('exploit_intelligence', {})
+                if exploit_intel:
+                    st.subheader("🎯 Threat Intelligence")
+                    
+                    for cve_id, intel in exploit_intel.items():
+                        with st.expander(f"⚠️ {cve_id} - Active Exploitation"):
+                            st.write(f"**Exploited in Wild:** {'Yes' if intel.get('exploited_in_wild') else 'No'}")
+                            st.write(f"**Ransomware Usage:** {'Yes' if intel.get('ransomware_usage') else 'No'}")
+                            
+                            threat_actors = intel.get('threat_actors', [])
+                            if threat_actors:
+                                st.write(f"**Associated Threat Actors:** {', '.join(threat_actors)}")
+                
+                # Patch recommendations
+                patch_recs = vuln_analysis.get('patch_recommendations', [])
+                if patch_recs:
+                    st.subheader("🔧 Patch Recommendations")
+                    
+                    # Create DataFrame for better display
+                    patch_df = pd.DataFrame(patch_recs)
+                    if not patch_df.empty:
+                        # Sort by priority
+                        priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3}
+                        patch_df['priority_order'] = patch_df['priority'].apply(lambda x: priority_order.get(x, 4))
+                        patch_df = patch_df.sort_values('priority_order').drop('priority_order', axis=1)
+                        
+                        st.dataframe(patch_df, use_container_width=True)
+            
             # Security recommendations
             st.subheader("🎯 Security Recommendations")
             
@@ -1336,6 +1411,90 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
                             st.write("**Recommended Actions:**")
                             for action in actions:
                                 st.write(f"• {action}")
+            
+            # Executive Dashboard Data
+            executive_data = trivy_scanner.generate_executive_dashboard_data()
+            if executive_data:
+                st.subheader("📈 Executive Security Dashboard")
+                
+                # Security posture overview
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    posture_score = executive_data.get('security_posture_score', 0)
+                    st.metric("Security Posture", f"{posture_score}%",
+                             delta=f"+{posture_score-85}" if posture_score > 85 else f"{posture_score-85}")
+                
+                with col2:
+                    compliance = executive_data.get('compliance_status', 0)
+                    st.metric("Compliance", f"{compliance}%",
+                             delta=f"+{compliance-90}" if compliance > 90 else f"{compliance-90}")
+                
+                with col3:
+                    total_findings = executive_data.get('total_findings', 0)
+                    st.metric("Total Findings", total_findings)
+                
+                with col4:
+                    critical_issues = executive_data.get('critical_issues', 0)
+                    st.metric("Critical Issues", critical_issues,
+                             delta=f"+{critical_issues}" if critical_issues > 0 else None)
+                
+                # Immediate actions required
+                immediate_actions = executive_data.get('immediate_actions', [])
+                if immediate_actions:
+                    st.write("**Immediate Actions Required:**")
+                    for action in immediate_actions:
+                        st.write(f"• {action}")
+                
+                # Coverage summary
+                coverage = executive_data.get('coverage_summary', {})
+                if coverage:
+                    st.write(f"**Scan Coverage:** {coverage.get('percentage', 0)}% ({coverage.get('covered_areas', 0)}/{coverage.get('total_areas', 0)} areas)")
+            
+            # Real-time monitoring controls
+            st.subheader("📡 Real-time Monitoring")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📊 View Real-time Monitoring Data"):
+                    monitoring_data = trivy_scanner.get_real_time_monitoring_data()
+                    st.json(monitoring_data)
+            
+            with col2:
+                if st.button("📈 Enable Continuous Monitoring"):
+                    monitoring_config = trivy_scanner.enable_continuous_monitoring()
+                    st.success("Continuous monitoring enabled!")
+                    st.json(monitoring_config)
+            
+            # Vulnerability trends analysis
+            trends_analysis = trivy_scanner.get_vulnerability_trends_analysis()
+            if trends_analysis:
+                st.subheader("📊 Vulnerability Trends Analysis")
+                
+                # Trends chart
+                if trends_analysis.get('vulnerability_timeline'):
+                    timeline = trends_analysis['vulnerability_timeline']
+                    new_vulns = trends_analysis['new_vulnerabilities_trend']
+                    critical_vulns = trends_analysis['critical_vulnerabilities_trend']
+                    
+                    trends_chart = dashboard_components.create_user_activity_chart({
+                        'dates': timeline,
+                        'values': new_vulns
+                    })
+                    st.plotly_chart(trends_chart, use_container_width=True)
+                
+                # Prediction
+                prediction = trends_analysis.get('prediction', {})
+                if prediction:
+                    st.info(f"**Trend Prediction:** {prediction.get('prediction', 'N/A')} "
+                           f"(Confidence: {prediction.get('confidence', 'N/A')})")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Weekly Average:** {prediction.get('weekly_average', 0)} vulnerabilities")
+                    with col2:
+                        st.write(f"**Overall Average:** {prediction.get('overall_average', 0)} vulnerabilities")
             
             # Export options
             st.subheader("📤 Export Scan Results")
