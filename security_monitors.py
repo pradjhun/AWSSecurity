@@ -269,12 +269,29 @@ class SecurityMonitors:
                     status = 'FAILING'
                     non_compliant_resources += non_compliant_count
                 
+                # Determine compliance status with icons
+                if non_compliant_count == 0 and compliant_count > 0:
+                    status_icon = "✅ COMPLIANT"
+                    status_color = "green"
+                elif non_compliant_count > 0 and compliant_count > 0:
+                    status_icon = "⚠️ PARTIAL"
+                    status_color = "orange"
+                elif non_compliant_count > 0:
+                    status_icon = "❌ NON-COMPLIANT"
+                    status_color = "red"
+                else:
+                    status_icon = "❓ UNKNOWN"
+                    status_color = "gray"
+                
                 compliance_rules.append({
                     'Rule Name': rule_name,
                     'Description': rule.get('Description', 'N/A')[:100] + '...' if rule.get('Description', '') else 'N/A',
-                    'Status': status,
+                    'Status': status_icon,
+                    'Status_Color': status_color,
                     'Compliant Resources': compliant_count,
                     'Non-compliant Resources': non_compliant_count,
+                    'Total Resources': compliant_count + non_compliant_count,
+                    'Compliance %': round((compliant_count / (compliant_count + non_compliant_count) * 100), 1) if (compliant_count + non_compliant_count) > 0 else 0,
                     'Source': rule.get('Source', {}).get('Owner', 'N/A')
                 })
             

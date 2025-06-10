@@ -331,6 +331,58 @@ class DashboardComponents:
         except Exception as e:
             st.error(f"Error creating compliance trends chart: {str(e)}")
     
+    def create_compliance_status_chart(self, compliance_rules_data):
+        """Create compliance status distribution chart"""
+        try:
+            if not compliance_rules_data:
+                st.info("No compliance rules data available")
+                return
+            
+            # Count status types
+            status_counts = {
+                'Compliant': 0,
+                'Partial': 0,
+                'Non-Compliant': 0,
+                'Unknown': 0
+            }
+            
+            for rule in compliance_rules_data:
+                status = rule.get('Status', '')
+                if 'COMPLIANT' in status and 'NON-COMPLIANT' not in status:
+                    status_counts['Compliant'] += 1
+                elif 'PARTIAL' in status:
+                    status_counts['Partial'] += 1
+                elif 'NON-COMPLIANT' in status:
+                    status_counts['Non-Compliant'] += 1
+                else:
+                    status_counts['Unknown'] += 1
+            
+            # Create donut chart
+            labels = list(status_counts.keys())
+            values = list(status_counts.values())
+            colors = ['#28a745', '#ffc107', '#dc3545', '#6c757d']  # Green, Yellow, Red, Gray
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=labels,
+                values=values,
+                hole=0.4,
+                marker_colors=colors,
+                textinfo='label+percent',
+                textposition='outside'
+            )])
+            
+            fig.update_layout(
+                title="Compliance Rules Status Distribution",
+                height=400,
+                showlegend=True,
+                annotations=[dict(text='Compliance<br>Status', x=0.5, y=0.5, font_size=14, showarrow=False)]
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"Error creating compliance status chart: {str(e)}")
+    
     def create_threat_types_chart(self, threat_data):
         """Create threat types chart"""
         try:

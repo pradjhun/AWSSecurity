@@ -438,7 +438,7 @@ def show_compliance_tab(security_monitors, dashboard_components):
             st.metric("Non-compliant Resources", non_compliant_resources)
         
         # Charts
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             if compliance_data.get('compliance_by_service'):
@@ -452,11 +452,89 @@ def show_compliance_tab(security_monitors, dashboard_components):
             else:
                 st.info("Compliance trends data not available")
         
-        # Compliance rules table
+        with col3:
+            if compliance_data.get('compliance_rules'):
+                dashboard_components.create_compliance_status_chart(compliance_data['compliance_rules'])
+            else:
+                st.info("Compliance status distribution not available")
+        
+        # Compliance rules table with visual indicators
         st.subheader("Compliance Rules Status")
         if compliance_data.get('compliance_rules'):
             df_compliance = pd.DataFrame(compliance_data['compliance_rules'])
-            st.dataframe(df_compliance, use_container_width=True)
+            
+            # Create a styled dataframe display
+            def highlight_compliance_status(row):
+                """Apply styling based on compliance status"""
+                color = row['Status_Color'] if 'Status_Color' in row else 'black'
+                color_map = {
+                    'green': 'background-color: #d4edda; color: #155724',
+                    'orange': 'background-color: #fff3cd; color: #856404', 
+                    'red': 'background-color: #f8d7da; color: #721c24',
+                    'gray': 'background-color: #f8f9fa; color: #6c757d'
+                }
+                style = color_map.get(color, '')
+                return [''] * len(row) if not style else [style if col == 'Status' else '' for col in row.index]
+            
+            # Display compliance summary cards
+            col1, col2, col3, col4 = st.columns(4)
+            
+            compliant_rules = len([r for r in compliance_data['compliance_rules'] if 'COMPLIANT' in r['Status'] and 'NON-COMPLIANT' not in r['Status']])
+            partial_rules = len([r for r in compliance_data['compliance_rules'] if 'PARTIAL' in r['Status']])
+            non_compliant_rules = len([r for r in compliance_data['compliance_rules'] if 'NON-COMPLIANT' in r['Status']])
+            unknown_rules = len([r for r in compliance_data['compliance_rules'] if 'UNKNOWN' in r['Status']])
+            
+            with col1:
+                st.metric("✅ Compliant", compliant_rules)
+            with col2:
+                st.metric("⚠️ Partial", partial_rules)
+            with col3:
+                st.metric("❌ Non-Compliant", non_compliant_rules)
+            with col4:
+                st.metric("❓ Unknown", unknown_rules)
+            
+            # Filter and display options
+            status_filter = st.selectbox(
+                "Filter by compliance status:",
+                ["All", "✅ Compliant", "⚠️ Partial", "❌ Non-Compliant", "❓ Unknown"],
+                key="compliance_filter"
+            )
+            
+            # Apply filter
+            if status_filter != "All":
+                filter_key = status_filter.split(" ", 1)[1] if " " in status_filter else status_filter
+                df_filtered = df_compliance[df_compliance['Status'].str.contains(filter_key, na=False)]
+            else:
+                df_filtered = df_compliance
+            
+            # Remove internal status color column for display
+            display_columns = [col for col in df_filtered.columns if col != 'Status_Color']
+            df_display = df_filtered[display_columns]
+            
+            # Display the filtered dataframe
+            if len(df_display) > 0:
+                st.dataframe(df_display, use_container_width=True)
+                
+                # Show detailed view for selected rules
+                if len(df_display) <= 10:  # Only show details for smaller datasets
+                    st.subheader("Rule Details")
+                    # Convert to list for iteration
+                    rules_list = df_display.to_dict('records')
+                    for rule in rules_list:
+                        with st.expander(f"{rule['Status']} {rule['Rule Name']}", expanded=False):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.markdown(f"**Description:** {rule['Description']}")
+                                st.markdown(f"**Source:** {rule['Source']}")
+                            
+                            with col2:
+                                st.markdown(f"**Compliance Rate:** {rule['Compliance %']}%")
+                                st.markdown(f"**Total Resources:** {rule['Total Resources']}")
+                                st.markdown(f"**Compliant:** {rule['Compliant Resources']}")
+                                st.markdown(f"**Non-compliant:** {rule['Non-compliant Resources']}")
+            else:
+                st.info(f"No rules found for status: {status_filter}")
         else:
             st.info("No compliance rules data available")
         
