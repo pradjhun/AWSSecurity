@@ -159,7 +159,7 @@ def main():
     dashboard_components = DashboardComponents()
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
         "🏠 Overview",
         "👤 IAM Security", 
         "🌐 Network Security",
@@ -168,6 +168,7 @@ def main():
         "🚨 Alerts & Threats",
         "🔍 Enhanced Checks",
         "🤖 AI Recommendations",
+        "🧠 OWASP LLM Top 10",
         "📤 Export Reports"
     ])
     
@@ -196,6 +197,9 @@ def main():
         show_ai_recommendations_tab(security_monitors, dashboard_components)
     
     with tab9:
+        show_owasp_llm_tab(security_monitors, dashboard_components)
+    
+    with tab10:
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
@@ -1274,6 +1278,244 @@ def show_ai_recommendations_tab(security_monitors, dashboard_components):
     except Exception as e:
         st.error(f"❌ Error generating AI recommendations: {str(e)}")
         st.info("💡 Please ensure AWS Bedrock is accessible in your region and try again.")
+
+def show_owasp_llm_tab(security_monitors, dashboard_components):
+    st.header("🧠 OWASP Top 10 for LLM Applications")
+    st.markdown("Comprehensive security assessment for Large Language Model applications")
+    
+    try:
+        # Initialize OWASP LLM security assessment
+        from owasp_llm_security import OWASPLLMSecurity
+        llm_security = OWASPLLMSecurity(security_monitors.ai_engine)
+        
+        # Get AWS context for assessment
+        overview_data = security_monitors.get_security_overview()
+        
+        # Perform LLM security assessment
+        with st.spinner("Analyzing LLM security posture..."):
+            assessment_results = llm_security.assess_llm_security_posture(overview_data)
+            security_report = llm_security.generate_llm_security_report(assessment_results)
+        
+        # Display overall security metrics
+        st.subheader("📊 LLM Security Overview")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "Overall Security Score",
+                f"{security_report['overall_score']}/100",
+                delta=f"{security_report['overall_score'] - 75}" if security_report['overall_score'] != 75 else None
+            )
+        
+        with col2:
+            high_risk = security_report['risk_distribution']['high']
+            st.metric(
+                "High Risk Vulnerabilities",
+                high_risk,
+                delta=f"+{high_risk}" if high_risk > 0 else None
+            )
+        
+        with col3:
+            medium_risk = security_report['risk_distribution']['medium']
+            st.metric("Medium Risk", medium_risk)
+        
+        with col4:
+            low_risk = security_report['risk_distribution']['low']
+            st.metric("Low Risk", low_risk)
+        
+        # Risk distribution chart
+        if security_report['risk_distribution']:
+            risk_data = security_report['risk_distribution']
+            dashboard_components.create_alert_distribution_chart({
+                'High Risk': risk_data['high'],
+                'Medium Risk': risk_data['medium'],
+                'Low Risk': risk_data['low']
+            })
+        
+        st.divider()
+        
+        # OWASP LLM Top 10 detailed assessment
+        st.subheader("🔍 OWASP LLM Top 10 Assessment")
+        
+        # Filter controls
+        col1, col2 = st.columns(2)
+        with col1:
+            risk_filter = st.selectbox(
+                "Filter by Risk Level:",
+                ["All", "HIGH", "MEDIUM", "LOW"],
+                key="llm_risk_filter"
+            )
+        
+        with col2:
+            category_filter = st.selectbox(
+                "Filter by Category:",
+                ["All"] + list(set([data.get('category', 'Unknown') for data in llm_security.owasp_llm_top_10.values()])),
+                key="llm_category_filter"
+            )
+        
+        # Display OWASP LLM vulnerabilities
+        for vuln_id, vuln_info in llm_security.owasp_llm_top_10.items():
+            assessment = assessment_results.get(vuln_id, {})
+            
+            # Apply filters
+            if risk_filter != "All" and assessment.get('risk_level') != risk_filter:
+                continue
+            if category_filter != "All" and vuln_info.get('category') != category_filter:
+                continue
+            
+            # Vulnerability card
+            risk_level = assessment.get('risk_level', 'MEDIUM')
+            severity = vuln_info.get('severity', 'MEDIUM')
+            
+            # Color coding based on risk level
+            if risk_level == 'HIGH':
+                card_color = "error"
+                status_emoji = "🔴"
+            elif risk_level == 'MEDIUM':
+                card_color = "warning"
+                status_emoji = "🟡"
+            else:
+                card_color = "success"
+                status_emoji = "🟢"
+            
+            with st.expander(f"{status_emoji} {vuln_id}: {vuln_info['name']} - {risk_level} Risk", expanded=False):
+                col1, col2, col3 = st.columns([2, 1, 1])
+                
+                with col1:
+                    st.write(f"**Description:** {vuln_info['description']}")
+                    st.write(f"**Category:** {vuln_info['category']}")
+                    st.write(f"**Impact:** {vuln_info['impact']}")
+                    
+                    # Assessment findings
+                    findings = assessment.get('findings', [])
+                    if findings:
+                        st.write("**Current Findings:**")
+                        for finding in findings:
+                            st.write(f"• {finding}")
+                
+                with col2:
+                    st.write(f"**Severity:** {severity}")
+                    st.write(f"**Risk Level:** {risk_level}")
+                    st.write(f"**Status:** {assessment.get('compliance_status', 'Unknown')}")
+                    
+                    # Examples
+                    examples = vuln_info.get('examples', [])
+                    if examples:
+                        st.write("**Examples:**")
+                        for example in examples[:2]:
+                            st.write(f"• {example}")
+                
+                with col3:
+                    # AI guidance button
+                    if st.button(f"🤖 Get AI Guidance", key=f"ai_guidance_{vuln_id}"):
+                        with st.spinner("Generating AI-powered LLM security guidance..."):
+                            ai_guidance = llm_security.get_ai_llm_security_guidance(
+                                vuln_id, assessment, overview_data
+                            )
+                            
+                            if ai_guidance:
+                                st.subheader(f"AI Guidance for {vuln_info['name']}")
+                                
+                                # Threat analysis
+                                if ai_guidance.get('threat_analysis'):
+                                    st.write("**Threat Analysis:**")
+                                    st.write(ai_guidance['threat_analysis'])
+                                
+                                # AWS-specific risks
+                                aws_risks = ai_guidance.get('aws_specific_risks', [])
+                                if aws_risks:
+                                    st.write("**AWS-Specific Risks:**")
+                                    for risk in aws_risks:
+                                        st.write(f"• {risk}")
+                                
+                                # Implementation guide
+                                impl_guide = ai_guidance.get('implementation_guide', [])
+                                if impl_guide:
+                                    st.write("**Implementation Guide:**")
+                                    for step in impl_guide:
+                                        st.write(f"**Step {step.get('step', 'N/A')}:** {step.get('action', 'No action specified')}")
+                                        st.write(f"  - AWS Service: {step.get('aws_service', 'Not specified')}")
+                                        st.write(f"  - Configuration: {step.get('configuration', 'Not specified')}")
+                                
+                                # Monitoring strategy
+                                monitoring = ai_guidance.get('monitoring_strategy', {})
+                                if monitoring:
+                                    st.write("**Monitoring Strategy:**")
+                                    if monitoring.get('cloudwatch_metrics'):
+                                        st.write("CloudWatch Metrics:")
+                                        for metric in monitoring['cloudwatch_metrics']:
+                                            st.write(f"  • {metric}")
+                    
+                    # Quick mitigation suggestions
+                    recommendations = assessment.get('recommendations', [])
+                    if recommendations:
+                        st.write("**Quick Mitigations:**")
+                        for rec in recommendations[:3]:
+                            st.write(f"• {rec}")
+        
+        st.divider()
+        
+        # Security checklist
+        st.subheader("✅ LLM Security Checklist")
+        
+        checklist = llm_security.create_llm_security_checklist()
+        
+        for category, items in checklist.items():
+            with st.expander(f"📋 {category.replace('_', ' ').title()}", expanded=False):
+                for item in items:
+                    col1, col2 = st.columns([0.1, 0.9])
+                    with col1:
+                        completed = st.checkbox("", key=f"checklist_{category}_{items.index(item)}")
+                    with col2:
+                        st.write(item)
+        
+        # Priority recommendations
+        priority_vulns = security_report.get('priority_vulnerabilities', [])
+        if priority_vulns:
+            st.subheader("🚨 Priority Actions Required")
+            
+            for vuln_id in priority_vulns:
+                vuln_info = llm_security.owasp_llm_top_10.get(vuln_id, {})
+                st.error(f"**{vuln_id}: {vuln_info.get('name', 'Unknown')}** - Immediate attention required")
+                
+                mitigations = vuln_info.get('mitigations', [])
+                if mitigations:
+                    st.write("Immediate actions:")
+                    for mitigation in mitigations[:2]:
+                        st.write(f"• {mitigation}")
+        
+        # Generate LLM security report
+        st.subheader("📄 Generate LLM Security Report")
+        
+        if st.button("Generate Comprehensive LLM Security Report", type="primary"):
+            with st.spinner("Generating detailed LLM security report..."):
+                # Prepare report data
+                report_data = {
+                    'assessment_results': assessment_results,
+                    'security_report': security_report,
+                    'owasp_details': llm_security.owasp_llm_top_10,
+                    'aws_context': overview_data,
+                    'generated_at': datetime.now().isoformat()
+                }
+                
+                # Store in session state for export
+                st.session_state.llm_security_report = report_data
+                
+                st.success("✅ LLM security report generated successfully!")
+                st.info("Report data has been prepared and can be exported via the Export Reports tab")
+                
+                # Display summary
+                st.json({
+                    'overall_score': security_report['overall_score'],
+                    'high_risk_vulnerabilities': len(priority_vulns),
+                    'total_vulnerabilities_assessed': security_report['total_vulnerabilities'],
+                    'assessment_timestamp': security_report['generated_at']
+                })
+                
+    except Exception as e:
+        st.error(f"Error in OWASP LLM security assessment: {str(e)}")
+        st.info("Please ensure proper AWS connectivity and try again")
 
 def show_export_reports_tab(security_monitors, dashboard_components):
     st.header("📤 Export Security Reports")
