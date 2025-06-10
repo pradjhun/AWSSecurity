@@ -561,9 +561,11 @@ def show_compliance_tab(security_monitors, dashboard_components):
         compliance_data = security_monitors.get_compliance_data()
         overview_data = security_monitors.get_security_overview()
         
-        # Initialize compliance analyzer for unknown issues
+        # Initialize compliance analyzer and interactive popup
         from compliance_analyzer import ComplianceAnalyzer
+        from interactive_compliance_popup import InteractiveCompliancePopup
         compliance_analyzer = ComplianceAnalyzer(security_monitors.ai_engine)
+        popup_system = InteractiveCompliancePopup(security_monitors.ai_engine)
         
         # Analyze unknown compliance issues
         unknown_analysis = compliance_analyzer.analyze_unknown_compliance_issues(compliance_data, overview_data)
@@ -676,6 +678,9 @@ def show_compliance_tab(security_monitors, dashboard_components):
             display_columns = [col for col in df_filtered.columns if col != 'Status_Color']
             df_display = df_filtered[display_columns]
             
+            # Add bulk guidance button
+            popup_system.create_bulk_guidance_popup(compliance_data['compliance_rules'], overview_data)
+            
             # Display the filtered dataframe
             if len(df_display) > 0:
                 st.dataframe(df_display, use_container_width=True)
@@ -687,7 +692,7 @@ def show_compliance_tab(security_monitors, dashboard_components):
                     rules_list = df_display.to_dict('records')
                     for rule in rules_list:
                         with st.expander(f"{rule['Status']} {rule['Rule Name']}", expanded=False):
-                            col1, col2 = st.columns([2, 1])
+                            col1, col2, col3 = st.columns([2, 1, 1])
                             
                             with col1:
                                 st.markdown(f"**Description:** {rule['Description']}")
@@ -698,6 +703,14 @@ def show_compliance_tab(security_monitors, dashboard_components):
                                 st.markdown(f"**Total Resources:** {rule['Total Resources']}")
                                 st.markdown(f"**Compliant:** {rule['Compliant Resources']}")
                                 st.markdown(f"**Non-compliant:** {rule['Non-compliant Resources']}")
+                            
+                            with col3:
+                                # Interactive AI guidance popup for each rule
+                                popup_system.create_compliance_popup(
+                                    rule.get('Rule Name', f'Rule_{rule.get("Rule Name", "Unknown")}'),
+                                    rule,
+                                    overview_data
+                                )
             else:
                 st.info(f"No rules found for status: {status_filter}")
         else:
