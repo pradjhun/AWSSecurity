@@ -1,0 +1,157 @@
+# AWS Subscription Security Monitoring Parameters
+
+A comprehensive security monitoring strategy for AWS subscriptions requires tracking multiple parameter categories to ensure account safety, compliance, and threat detection.
+
+## Identity and Access Management (IAM) Parameters
+
+### User and Role Monitoring
+- **Root account usage**: Login attempts, API calls, and configuration changes
+- **IAM user creation/deletion**: New user accounts and privilege escalations
+- **Role assumption patterns**: Cross-account role usage and unusual access patterns
+- **Access key rotation**: Age of access keys and rotation compliance
+- **Password policy compliance**: Strength requirements and expiration settings
+- **MFA enforcement**: Multi-factor authentication status across all users
+- **Privilege escalation attempts**: Unauthorized permission modifications
+
+### Policy and Permission Changes
+- **IAM policy modifications**: Inline and managed policy changes
+- **Permission boundary violations**: Attempts to exceed defined boundaries
+- **Service-linked role changes**: Modifications to AWS service permissions
+- **Cross-account trust relationships**: External account access configurations
+
+## Network Security Parameters
+
+### VPC and Network Configuration
+- **Security group modifications**: Inbound/outbound rule changes
+- **Network ACL changes**: Subnet-level access control modifications
+- **VPC flow logs**: Network traffic patterns and anomalies
+- **Internet gateway attachments**: Public internet access configurations
+- **NAT gateway usage**: Outbound internet traffic monitoring
+- **VPC peering connections**: Inter-VPC communication setup
+- **Transit gateway configurations**: Multi-VPC connectivity changes
+
+### DNS and Domain Security
+- **Route 53 zone modifications**: DNS record changes and transfers
+- **Certificate Manager**: SSL/TLS certificate expiration and validation
+- **CloudFront distribution changes**: CDN configuration modifications
+
+## Data Protection Parameters
+
+### Encryption and Key Management
+- **KMS key usage**: Encryption key access patterns and rotations
+- **S3 bucket encryption**: Bucket-level encryption status changes
+- **EBS volume encryption**: Storage encryption compliance
+- **RDS encryption status**: Database encryption configurations
+- **Secrets Manager access**: Credential retrieval patterns
+
+### Data Access and Movement
+- **S3 bucket policy changes**: Public access and permission modifications
+- **Cross-region data transfers**: Unusual data movement patterns
+- **Database access patterns**: Abnormal query volumes or access times
+- **Data Loss Prevention (DLP)**: Sensitive data exposure attempts
+
+## Compute and Application Security
+
+### EC2 and Container Monitoring
+- **Instance launch/termination**: Unauthorized compute resource creation
+- **Security patch compliance**: OS and application update status
+- **Container image vulnerabilities**: ECR image scanning results
+- **ECS/EKS cluster configurations**: Container orchestration security
+- **Lambda function modifications**: Serverless code and permission changes
+
+### Application-Level Security
+- **API Gateway access patterns**: Unusual API usage or rate limiting
+- **Application Load Balancer logs**: Web application attack patterns
+- **CloudWatch application metrics**: Performance anomalies indicating attacks
+
+## Logging and Monitoring Parameters
+
+### CloudTrail Configuration
+- **Trail integrity**: Log file validation and tampering detection
+- **Multi-region logging**: Comprehensive activity tracking
+- **Management event logging**: Control plane API monitoring
+- **Data event logging**: S3 and Lambda data access tracking
+- **Insight events**: Unusual activity pattern detection
+
+### Security Hub and GuardDuty
+- **Finding severity levels**: Critical, high, medium, and low findings
+- **Compliance standard adherence**: CIS, PCI DSS, AWS Foundational benchmarks
+- **Threat intelligence feeds**: Malicious IP and domain detection
+- **Behavioral anomaly detection**: Machine learning-based threat identification
+
+## Compliance and Governance Parameters
+
+### Cost and Resource Management
+- **Billing anomalies**: Unexpected cost spikes indicating compromise
+- **Resource quota violations**: Service limit breaches
+- **Reserved instance utilization**: Cost optimization compliance
+- **Tag compliance**: Resource tagging policy adherence
+
+### Backup and Disaster Recovery
+- **Backup completion status**: Automated backup success rates
+- **Cross-region replication**: Data redundancy configurations
+- **Recovery point objectives (RPO)**: Backup frequency compliance
+- **Recovery time objectives (RTO)**: Disaster recovery testing results
+
+## Service-Specific Security Parameters
+
+### Database Security
+- **RDS parameter group changes**: Database configuration modifications
+- **Database user activity**: Login patterns and privilege usage
+- **Query performance insights**: Unusual database access patterns
+- **Aurora cluster configurations**: Multi-master and cross-region setups
+
+### Storage Security
+- **S3 access logging**: Bucket access patterns and anomalies
+- **Glacier vault access**: Long-term storage security monitoring
+- **EFS mount target security**: File system access controls
+- **Storage Gateway configurations**: Hybrid storage security
+
+### Messaging and Notification
+- **SNS topic modifications**: Notification system changes
+- **SQS queue access patterns**: Message queue security monitoring
+- **SES sending patterns**: Email service abuse detection
+
+## Operational Security Parameters
+
+### Change Management
+- **CloudFormation stack changes**: Infrastructure as code modifications
+- **Systems Manager patch compliance**: OS-level security updates
+- **Config rule compliance**: Resource configuration drift detection
+- **Trusted Advisor security recommendations**: AWS best practice adherence
+
+### Incident Response
+- **Security incident escalation**: Automated response trigger monitoring
+- **Forensic data preservation**: Evidence collection and retention
+- **Communication channel security**: Incident response team coordination
+- **Recovery procedure execution**: Business continuity plan activation
+
+## Advanced Threat Detection
+
+### Machine Learning-Based Detection
+- **Amazon Macie findings**: Sensitive data discovery and classification
+- **GuardDuty ML models**: Behavioral analysis and anomaly detection
+- **Security Hub custom insights**: Organization-specific threat patterns
+- **CloudWatch anomaly detection**: Metric-based security monitoring
+
+### Third-Party Integration
+- **SIEM integration status**: Security information event management connectivity
+- **Threat intelligence feeds**: External security data integration
+- **Vulnerability scanner results**: Third-party security assessment tools
+- **Compliance reporting**: Automated regulatory compliance monitoring
+
+## Monitoring Implementation Strategy
+
+### Real-Time Alerting
+- **Critical security events**: Immediate notification requirements
+- **Threshold-based alerts**: Metric-driven security notifications
+- **Correlation rules**: Multi-event security pattern detection
+- **Escalation procedures**: Automated incident response workflows
+
+### Reporting and Analytics
+- **Security dashboard metrics**: Executive-level security posture reporting
+- **Trend analysis**: Historical security event pattern identification
+- **Compliance reporting**: Regulatory requirement adherence tracking
+- **Risk assessment metrics**: Quantitative security risk evaluation
+
+> 📚 **Knowledge Source:** This comprehensive parameter list is based on AWS security best practices and general cloud security principles. For specific AWS service documentation and current security control implementations, please enable RAG mode for access to the latest AWS security documentation and compliance frameworks.
