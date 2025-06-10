@@ -1,0 +1,83 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "SecurityDashboardBasicAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMReadOnlyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListUsers",
+                "iam:ListRoles",
+                "iam:ListMFADevices",
+                "iam:ListAccessKeys",
+                "iam:GetUser",
+                "iam:GetRole"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EC2NetworkReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeRegions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3ReadOnlyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketEncryption",
+                "s3:GetPublicAccessBlock"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "KMSReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "kms:ListKeys"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudTrailReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:LookupEvents"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GuardDutyReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "guardduty:ListDetectors",
+                "guardduty:ListFindings",
+                "guardduty:GetFindings"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "ConfigReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "config:DescribeConfigRules",
+                "config:GetComplianceDetailsByConfigRule"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
