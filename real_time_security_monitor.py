@@ -271,7 +271,8 @@ class RealTimeSecurityMonitor:
                     'labels': list(severity_breakdown.keys()),
                     'values': list(severity_breakdown.values())
                 })
-                st.plotly_chart(fig, use_container_width=True)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No scan results available. Run a vulnerability scan to see live results.")
     

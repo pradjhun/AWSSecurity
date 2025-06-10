@@ -1200,7 +1200,10 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
                     'labels': list(severity_data.keys()),
                     'values': list(severity_data.values())
                 })
-                st.plotly_chart(fig, use_container_width=True)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No severity data to display")
             
             # Detailed findings tabs
             st.subheader("🔍 Detailed Findings")
@@ -1482,7 +1485,10 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
                         'dates': timeline,
                         'values': new_vulns
                     })
-                    st.plotly_chart(trends_chart, use_container_width=True)
+                    if trends_chart:
+                        st.plotly_chart(trends_chart, use_container_width=True)
+                    else:
+                        st.info("No trend data available")
                 
                 # Prediction
                 prediction = trends_analysis.get('prediction', {})

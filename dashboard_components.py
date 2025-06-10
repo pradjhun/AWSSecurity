@@ -53,8 +53,7 @@ class DashboardComponents:
         """Create alert distribution pie chart"""
         try:
             if not alert_data or 'labels' not in alert_data or 'values' not in alert_data:
-                st.info("No alert distribution data available")
-                return
+                return None
             
             colors = ['#d62728', '#ff7f0e', '#ffbb78', '#2ca02c']
             
@@ -71,39 +70,44 @@ class DashboardComponents:
                 showlegend=True
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            return fig
             
         except Exception as e:
             st.error(f"Error creating alert distribution chart: {str(e)}")
+            return None
     
     def create_user_activity_chart(self, activity_data):
         """Create user activity chart"""
         try:
-            if not activity_data or 'dates' not in activity_data or 'logins' not in activity_data:
-                st.info("No user activity data available")
-                return
+            if not activity_data or 'dates' not in activity_data:
+                return None
+            
+            # Handle different data structures
+            y_values = activity_data.get('logins') or activity_data.get('values') or []
             
             fig = go.Figure()
             
-            fig.add_trace(go.Bar(
+            fig.add_trace(go.Scatter(
                 x=activity_data['dates'],
-                y=activity_data['logins'],
-                name='User Logins',
-                marker_color=self.color_palette['primary']
+                y=y_values,
+                mode='lines+markers',
+                name='Activity',
+                line=dict(color=self.color_palette['primary'])
             ))
             
             fig.update_layout(
-                title="User Login Activity",
+                title="Activity Trends",
                 xaxis_title="Date",
-                yaxis_title="Number of Logins",
+                yaxis_title="Count",
                 height=400,
                 showlegend=False
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            return fig
             
         except Exception as e:
             st.error(f"Error creating user activity chart: {str(e)}")
+            return None
     
     def create_policy_changes_chart(self, policy_data):
         """Create policy changes chart"""
@@ -450,12 +454,19 @@ class DashboardComponents:
     def create_metric_card(self, title, value, delta=None, delta_color="normal"):
         """Create a metric card component"""
         try:
-            st.metric(
-                label=title,
-                value=value,
-                delta=delta,
-                delta_color=delta_color
-            )
+            # Handle delta_color parameter properly
+            metric_kwargs = {
+                "label": title,
+                "value": value
+            }
+            
+            if delta is not None:
+                metric_kwargs["delta"] = delta
+                
+            if delta_color in ["normal", "inverse", "off"]:
+                metric_kwargs["delta_color"] = delta_color
+            
+            st.metric(**metric_kwargs)
         except Exception as e:
             st.error(f"Error creating metric card: {str(e)}")
     
