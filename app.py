@@ -11,6 +11,8 @@ from aws_client import AWSClient
 from security_monitors import SecurityMonitors
 from dashboard_components import DashboardComponents
 from utils import format_timestamp, calculate_security_score, get_severity_color
+from enhanced_security_checks import EnhancedSecurityChecks
+from export_manager import ExportManager
 
 # Page configuration
 st.set_page_config(
@@ -127,13 +129,15 @@ def main():
     dashboard_components = DashboardComponents()
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "🏠 Overview",
-        "👤 IAM Security",
+        "👤 IAM Security", 
         "🌐 Network Security",
         "🛡️ Data Protection",
         "📋 Compliance",
-        "🚨 Alerts & Threats"
+        "🚨 Alerts & Threats",
+        "🔍 Enhanced Checks",
+        "📤 Export Reports"
     ])
     
     with tab1:
@@ -153,6 +157,12 @@ def main():
     
     with tab6:
         show_alerts_threats_tab(security_monitors, dashboard_components)
+    
+    with tab7:
+        show_enhanced_checks_tab(security_monitors, dashboard_components)
+    
+    with tab8:
+        show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
     st.header("Security Overview")
@@ -704,6 +714,217 @@ def show_alerts_threats_tab(security_monitors, dashboard_components):
             
     except Exception as e:
         st.error(f"Error loading threats data: {str(e)}")
+
+def show_enhanced_checks_tab(security_monitors, dashboard_components):
+    st.header("🔍 Enhanced Security Checks")
+    st.markdown("Comprehensive security assessments based on industry best practices")
+    
+    try:
+        # Initialize enhanced security checks
+        enhanced_checks = EnhancedSecurityChecks(st.session_state.aws_client)
+        
+        # Check selection
+        st.subheader("Available Security Assessments")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            run_database_checks = st.checkbox("Database Security Assessment", value=True)
+            run_container_checks = st.checkbox("Container & Serverless Security", value=True)
+        
+        with col2:
+            run_advanced_iam = st.checkbox("Advanced IAM Analysis", value=True)
+            run_network_deep_dive = st.checkbox("Network Security Deep Dive", value=True)
+        
+        if st.button("Run Enhanced Security Checks", type="primary"):
+            with st.spinner("Running comprehensive security assessments..."):
+                all_findings = []
+                
+                if run_database_checks:
+                    st.info("Running database security checks...")
+                    db_findings = enhanced_checks.run_database_security_checks()
+                    all_findings.extend(db_findings)
+                
+                if run_container_checks:
+                    st.info("Running container and serverless security checks...")
+                    container_findings = enhanced_checks.run_container_security_checks()
+                    all_findings.extend(container_findings)
+                
+                if run_advanced_iam:
+                    st.info("Running advanced IAM analysis...")
+                    iam_findings = enhanced_checks.run_advanced_iam_checks()
+                    all_findings.extend(iam_findings)
+                
+                if run_network_deep_dive:
+                    st.info("Running network security deep dive...")
+                    network_findings = enhanced_checks.run_network_security_deep_dive()
+                    all_findings.extend(network_findings)
+                
+                # Store findings in session state for export
+                st.session_state.enhanced_findings = all_findings
+                
+                # Display results
+                st.subheader("Security Assessment Results")
+                
+                if all_findings:
+                    # Summary metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    critical_count = len([f for f in all_findings if f.get('severity') == 'CRITICAL'])
+                    high_count = len([f for f in all_findings if f.get('severity') == 'HIGH'])
+                    medium_count = len([f for f in all_findings if f.get('severity') == 'MEDIUM'])
+                    low_count = len([f for f in all_findings if f.get('severity') == 'LOW'])
+                    
+                    with col1:
+                        st.metric("Critical Issues", critical_count)
+                    with col2:
+                        st.metric("High Severity", high_count)
+                    with col3:
+                        st.metric("Medium Severity", medium_count)
+                    with col4:
+                        st.metric("Low Severity", low_count)
+                    
+                    # Severity filter
+                    severity_filter = st.selectbox(
+                        "Filter by severity:",
+                        ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                    )
+                    
+                    # Filter findings
+                    filtered_findings = all_findings
+                    if severity_filter != "All":
+                        filtered_findings = [f for f in all_findings if f.get('severity') == severity_filter]
+                    
+                    # Display findings
+                    for finding in filtered_findings:
+                        severity_color = {
+                            'CRITICAL': '🔴',
+                            'HIGH': '🟠',
+                            'MEDIUM': '🟡',
+                            'LOW': '🟢'
+                        }.get(finding.get('severity', 'LOW'), '⚪')
+                        
+                        with st.expander(f"{severity_color} {finding.get('title', 'Security Finding')}", expanded=False):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.markdown(f"**Check ID:** {finding.get('check_id', 'N/A')}")
+                                st.markdown(f"**Description:** {finding.get('description', 'N/A')}")
+                                st.markdown(f"**Remediation:** {finding.get('remediation', 'N/A')}")
+                            
+                            with col2:
+                                st.markdown(f"**Severity:** {finding.get('severity', 'N/A')}")
+                                st.markdown(f"**Resource:** {finding.get('resource', 'N/A')}")
+                                st.markdown(f"**Resource Type:** {finding.get('resource_type', 'N/A')}")
+                                st.markdown(f"**Status:** {finding.get('status', 'N/A')}")
+                else:
+                    st.success("No security issues found in the selected assessments!")
+                    
+    except Exception as e:
+        st.error(f"Error running enhanced security checks: {str(e)}")
+
+def show_export_reports_tab(security_monitors, dashboard_components):
+    st.header("📤 Export Security Reports")
+    st.markdown("Export comprehensive security assessments in multiple formats")
+    
+    try:
+        export_manager = ExportManager()
+        
+        # Get current data
+        overview_data = security_monitors.get_security_overview()
+        compliance_data = security_monitors.get_compliance_data()
+        
+        st.subheader("Available Export Formats")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📊 Standard Reports")
+            
+            # JSON Export
+            if st.button("Export Overview as JSON", key="json_export"):
+                json_data = export_manager.export_findings_to_json(overview_data)
+                filename = export_manager.get_export_filename('json', 'security_overview')
+                
+                st.download_button(
+                    label="Download JSON Report",
+                    data=json_data,
+                    file_name=filename,
+                    mime="application/json"
+                )
+            
+            # CSV Export
+            if st.button("Export Compliance as CSV", key="csv_export"):
+                if compliance_data.get('compliance_rules'):
+                    csv_data = export_manager.export_compliance_to_csv(compliance_data['compliance_rules'])
+                    filename = export_manager.get_export_filename('csv', 'compliance_rules')
+                    
+                    st.download_button(
+                        label="Download CSV Report",
+                        data=csv_data,
+                        file_name=filename,
+                        mime="text/csv"
+                    )
+                else:
+                    st.warning("No compliance data available for export")
+        
+        with col2:
+            st.markdown("### 📋 Comprehensive Reports")
+            
+            # HTML Export
+            if st.button("Generate Executive Report (HTML)", key="html_export"):
+                recommendations = overview_data.get('recommendations', [])
+                html_data = export_manager.export_security_overview_to_html(
+                    overview_data, 
+                    compliance_data.get('compliance_rules'),
+                    recommendations
+                )
+                filename = export_manager.get_export_filename('html', 'executive_report')
+                
+                st.download_button(
+                    label="Download Executive Report",
+                    data=html_data,
+                    file_name=filename,
+                    mime="text/html"
+                )
+            
+            # Security Hub Format
+            if st.button("Export for AWS Security Hub", key="asff_export"):
+                # Get enhanced findings if available
+                enhanced_findings = getattr(st.session_state, 'enhanced_findings', [])
+                if enhanced_findings:
+                    account_id = st.session_state.aws_client.get_account_id() or "123456789012"
+                    region = st.session_state.aws_client.region_name
+                    
+                    asff_data = export_manager.export_aws_security_hub_format(
+                        enhanced_findings, account_id, region
+                    )
+                    filename = export_manager.get_export_filename('asff', 'security_hub_findings')
+                    
+                    st.download_button(
+                        label="Download ASFF Format",
+                        data=asff_data,
+                        file_name=filename,
+                        mime="application/json"
+                    )
+                else:
+                    st.warning("No enhanced findings available. Run Enhanced Checks first.")
+        
+        # Export Statistics
+        st.subheader("📈 Export Statistics")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Compliance Rules", len(compliance_data.get('compliance_rules', [])))
+        with col2:
+            enhanced_findings_count = len(getattr(st.session_state, 'enhanced_findings', []))
+            st.metric("Enhanced Findings", enhanced_findings_count)
+        with col3:
+            recommendations_count = len(overview_data.get('recommendations', []))
+            st.metric("Security Recommendations", recommendations_count)
+            
+    except Exception as e:
+        st.error(f"Error in export functionality: {str(e)}")
 
 if __name__ == "__main__":
     main()
