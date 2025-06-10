@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 import pandas as pd
 from aws_client import AWSClient
+from ai_compliance_engine import AIComplianceEngine
 
 class SecurityMonitors:
     """Security monitoring and data collection for AWS services"""
     
     def __init__(self, aws_client):
         self.aws_client = aws_client
+        self.ai_engine = AIComplianceEngine(aws_client)
     
     def get_security_overview(self):
         """Get overall security overview data"""
@@ -557,7 +559,30 @@ class SecurityMonitors:
             return 'LOW'
     
     def _get_security_recommendations(self):
-        """Generate security recommendations based on current AWS configuration"""
+        """Generate AI-powered security recommendations based on current AWS configuration"""
+        # Try AI-powered recommendations first
+        try:
+            overview_data = {
+                'iam_users': len(self.aws_client.list_iam_users()),
+                'security_groups': len(self.aws_client.list_security_groups()),
+                's3_buckets': len(self.aws_client.list_s3_buckets()),
+                'critical_alerts': 0  # Will be populated by overview method
+            }
+            
+            compliance_data = self.get_compliance_data()
+            enhanced_findings = getattr(self, '_cached_enhanced_findings', [])
+            
+            ai_result = self.ai_engine.generate_intelligent_recommendations(
+                overview_data, compliance_data, enhanced_findings
+            )
+            
+            if ai_result.get('generation_success', False):
+                return ai_result['recommendations']
+            
+        except Exception as e:
+            print(f"AI recommendations failed, using fallback: {str(e)}")
+        
+        # Fallback to rule-based recommendations
         recommendations = []
         
         try:

@@ -129,7 +129,7 @@ def main():
     dashboard_components = DashboardComponents()
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "🏠 Overview",
         "👤 IAM Security", 
         "🌐 Network Security",
@@ -137,6 +137,7 @@ def main():
         "📋 Compliance",
         "🚨 Alerts & Threats",
         "🔍 Enhanced Checks",
+        "🤖 AI Recommendations",
         "📤 Export Reports"
     ])
     
@@ -162,6 +163,9 @@ def main():
         show_enhanced_checks_tab(security_monitors, dashboard_components)
     
     with tab8:
+        show_ai_recommendations_tab(security_monitors, dashboard_components)
+    
+    with tab9:
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
@@ -929,6 +933,186 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                     
     except Exception as e:
         st.error(f"Error running enhanced security checks: {str(e)}")
+
+def show_ai_recommendations_tab(security_monitors, dashboard_components):
+    st.header("🤖 AI-Powered Security Recommendations")
+    
+    # Test Bedrock connectivity first
+    if hasattr(security_monitors, 'ai_engine'):
+        connectivity_test = security_monitors.ai_engine.test_bedrock_connectivity()
+        
+        if connectivity_test[0]:
+            st.success("✅ AWS Bedrock AI engine is connected and ready")
+        else:
+            st.warning(f"⚠️ Bedrock connectivity issue: {connectivity_test[1]}")
+            st.info("💡 Ensure your AWS credentials have access to Bedrock service and the Claude model is available in your region")
+    
+    # Add refresh button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Generate Fresh AI Recommendations", type="primary"):
+            st.rerun()
+    
+    try:
+        # Get comprehensive data for AI analysis
+        overview_data = security_monitors.get_security_overview()
+        compliance_data = security_monitors.get_compliance_data()
+        
+        # Try to get enhanced findings if available
+        enhanced_findings = []
+        try:
+            from enhanced_security_checks import EnhancedSecurityChecks
+            enhanced_checks = EnhancedSecurityChecks(security_monitors.aws_client)
+            enhanced_findings = enhanced_checks.run_all_enhanced_checks()
+        except Exception as e:
+            st.info(f"Enhanced findings not available: {str(e)}")
+        
+        # Generate AI recommendations
+        with st.spinner("🧠 AI is analyzing your AWS security configuration..."):
+            ai_result = security_monitors.ai_engine.generate_intelligent_recommendations(
+                overview_data, compliance_data, enhanced_findings
+            )
+        
+        if ai_result.get('generation_success', False):
+            st.success("✨ AI analysis completed successfully!")
+            
+            # Display AI summary
+            ai_summary = ai_result.get('ai_summary', {})
+            if ai_summary:
+                st.subheader("📊 Executive Summary")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.info(f"**Analysis Time:** {ai_summary.get('analysis_timestamp', 'Unknown')[:19]}")
+                with col2:
+                    st.info(f"**Source:** AWS Bedrock AI")
+                with col3:
+                    st.info(f"**Recommendations:** {len(ai_result.get('recommendations', []))}")
+                
+                if ai_summary.get('executive_summary'):
+                    st.markdown(f"**Executive Summary:** {ai_summary['executive_summary']}")
+                
+                if ai_summary.get('risk_assessment'):
+                    st.markdown(f"**Risk Assessment:** {ai_summary['risk_assessment']}")
+                
+                if ai_summary.get('compliance_gaps'):
+                    st.markdown(f"**Key Compliance Gaps:** {ai_summary['compliance_gaps']}")
+            
+            # Display recommendations
+            recommendations = ai_result.get('recommendations', [])
+            if recommendations:
+                st.subheader("🎯 Prioritized Security Recommendations")
+                
+                # Filter controls
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    priority_filter = st.selectbox(
+                        "Filter by Priority:",
+                        ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                    )
+                with col2:
+                    category_filter = st.selectbox(
+                        "Filter by Category:",
+                        ["All"] + list(set([r.get('category', 'Unknown') for r in recommendations]))
+                    )
+                with col3:
+                    effort_filter = st.selectbox(
+                        "Filter by Effort:",
+                        ["All", "Low", "Medium", "High"]
+                    )
+                
+                # Apply filters
+                filtered_recommendations = recommendations
+                if priority_filter != "All":
+                    filtered_recommendations = [r for r in filtered_recommendations if r.get('priority') == priority_filter]
+                if category_filter != "All":
+                    filtered_recommendations = [r for r in filtered_recommendations if r.get('category') == category_filter]
+                if effort_filter != "All":
+                    filtered_recommendations = [r for r in filtered_recommendations if r.get('effort') == effort_filter]
+                
+                # Display filtered recommendations
+                for i, rec in enumerate(filtered_recommendations, 1):
+                    priority = rec.get('priority', 'MEDIUM')
+                    
+                    # Priority color coding
+                    if priority == 'CRITICAL':
+                        priority_color = "🔴"
+                        container_type = "error"
+                    elif priority == 'HIGH':
+                        priority_color = "🟠"
+                        container_type = "warning"
+                    elif priority == 'MEDIUM':
+                        priority_color = "🟡"
+                        container_type = "info"
+                    else:
+                        priority_color = "🟢"
+                        container_type = "success"
+                    
+                    with st.container():
+                        st.markdown(f"### {priority_color} {rec.get('title', 'Security Recommendation')}")
+                        
+                        # Recommendation details in columns
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Priority", priority)
+                        with col2:
+                            st.metric("Impact", rec.get('impact', 'Unknown'))
+                        with col3:
+                            st.metric("Effort", rec.get('effort', 'Unknown'))
+                        with col4:
+                            st.metric("Timeline", rec.get('implementation_timeline', 'Unknown'))
+                        
+                        # Description and AI insight
+                        st.markdown(f"**Description:** {rec.get('description', 'No description available')}")
+                        
+                        if rec.get('ai_insight'):
+                            st.markdown(f"**🧠 AI Insight:** {rec['ai_insight']}")
+                        
+                        # Business impact
+                        if rec.get('business_impact'):
+                            st.markdown(f"**💼 Business Impact:** {rec['business_impact']}")
+                        
+                        # Implementation steps
+                        if rec.get('steps'):
+                            with st.expander("📋 Implementation Steps"):
+                                for step_idx, step in enumerate(rec['steps'], 1):
+                                    st.markdown(f"{step_idx}. {step}")
+                        
+                        # Additional details in expander
+                        with st.expander("📖 Additional Details"):
+                            if rec.get('compliance_frameworks'):
+                                st.markdown(f"**Compliance Frameworks:** {', '.join(rec['compliance_frameworks'])}")
+                            
+                            if rec.get('risk_mitigation'):
+                                st.markdown(f"**Risk Mitigation:** {rec['risk_mitigation']}")
+                            
+                            st.markdown(f"**Category:** {rec.get('category', 'Unknown')}")
+                            st.markdown(f"**AI Generated:** {'Yes' if rec.get('ai_generated', False) else 'No'}")
+                        
+                        st.divider()
+                
+                if not filtered_recommendations:
+                    st.info("No recommendations match the selected filters.")
+            
+            else:
+                st.warning("No recommendations generated by AI analysis.")
+        
+        else:
+            st.error("❌ AI recommendation generation failed. Using fallback recommendations.")
+            
+            # Show fallback recommendations
+            fallback_recommendations = ai_result.get('recommendations', [])
+            if fallback_recommendations:
+                st.subheader("📋 Standard Security Recommendations")
+                for rec in fallback_recommendations:
+                    with st.expander(f"⚠️ {rec.get('title', 'Security Recommendation')}"):
+                        st.markdown(f"**Priority:** {rec.get('priority', 'Unknown')}")
+                        st.markdown(f"**Description:** {rec.get('description', 'No description available')}")
+                        st.markdown(f"**Category:** {rec.get('category', 'Unknown')}")
+    
+    except Exception as e:
+        st.error(f"❌ Error generating AI recommendations: {str(e)}")
+        st.info("💡 Please ensure AWS Bedrock is accessible in your region and try again.")
 
 def show_export_reports_tab(security_monitors, dashboard_components):
     st.header("📤 Export Security Reports")

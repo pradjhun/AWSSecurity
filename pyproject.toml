@@ -11,4 +11,5 @@ dependencies = [
     "botocore>=1.38.33",
     "pandas>=2.3.0",
     "reportlab>=4.4.1",
+    "openai>=1.85.0",
 ]
