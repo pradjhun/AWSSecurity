@@ -2539,24 +2539,25 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
         # Calculate service risk scores for selection
         service_risks = security_heatmap.calculate_service_risk_scores(overview_data, compliance_data, alerts_data)
         
-        # Service selection for drill-down
+        # Service selection for drill-down with automatic analysis
         col1, col2 = st.columns([2, 1])
         with col1:
             selected_service = st.selectbox(
                 "Select a service for detailed risk analysis:",
                 options=list(service_risks.keys()),
-                help="Choose a service to view detailed security risk explanation and remediation steps"
+                help="Analysis will update automatically when you change the selection",
+                key="service_selector"
             )
         
         with col2:
-            analyze_clicked = st.button("🔍 Analyze Service Risk", type="primary", key="analyze_service_risk")
-            if analyze_clicked:
-                st.session_state.show_service_analysis = True
-                st.session_state.selected_service_analysis = selected_service
+            # Auto-analyze toggle
+            auto_analyze = st.checkbox("Auto-analyze", value=True, help="Automatically show analysis when service changes")
+            if st.button("🔄 Refresh Analysis", key="refresh_analysis"):
+                st.rerun()
         
-        # Display detailed analysis if requested or button was just clicked
-        if getattr(st.session_state, 'show_service_analysis', False) or analyze_clicked:
-            service_name = selected_service if analyze_clicked else getattr(st.session_state, 'selected_service_analysis', selected_service)
+        # Display detailed analysis automatically or when requested
+        service_name = selected_service
+        if auto_analyze or getattr(st.session_state, 'show_service_analysis', False):
             risk_score = service_risks.get(service_name, 0)
             
             try:
@@ -2696,6 +2697,8 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
                 with col2:
                     if st.button("❌ Close Analysis", key="close_service_analysis"):
                         st.session_state.show_service_analysis = False
+                        if 'service_selector' in st.session_state:
+                            del st.session_state.service_selector
                         st.rerun()
         
         # Service risk insights
