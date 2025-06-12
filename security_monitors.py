@@ -48,9 +48,11 @@ class SecurityMonitors:
             
             security_groups = total_security_groups
             
-            # Get GuardDuty findings count
+            # Get GuardDuty findings count and detector information
             critical_alerts = 0
+            guardduty_detectors = 0
             detectors = self.aws_client.list_guardduty_detectors()
+            guardduty_detectors = len(detectors)
             if detectors:
                 findings = self.aws_client.list_guardduty_findings(detectors[0])
                 critical_alerts = len([f for f in findings if f.get('Severity', 0) >= 8.0])
@@ -77,6 +79,7 @@ class SecurityMonitors:
                 's3_buckets': s3_buckets,
                 'vpcs': total_vpcs,
                 'critical_alerts': critical_alerts,
+                'guardduty_detectors': guardduty_detectors,
                 'recent_events': formatted_events,
                 'region_breakdown': region_breakdown,
                 'selected_regions': self.aws_client.selected_regions,

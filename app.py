@@ -975,6 +975,7 @@ def show_compliance_tab(security_monitors, dashboard_components):
         # Compliance rules table with visual indicators
         st.subheader("Compliance Rules Status")
         if compliance_data.get('compliance_rules'):
+            import pandas as pd
             df_compliance = pd.DataFrame(compliance_data['compliance_rules'])
             
             # Create a styled dataframe display
@@ -1023,7 +1024,7 @@ def show_compliance_tab(security_monitors, dashboard_components):
             
             # Remove internal status color column for display
             display_columns = [col for col in df_filtered.columns if col != 'Status_Color']
-            df_display = df_filtered[display_columns]
+            df_display = df_filtered[display_columns].copy()  # Ensure we have a proper DataFrame copy
             
             # Add bulk guidance button
             popup_system.create_bulk_guidance_popup(compliance_data['compliance_rules'], overview_data)
@@ -1035,8 +1036,12 @@ def show_compliance_tab(security_monitors, dashboard_components):
                 # Show detailed view for selected rules
                 if len(df_display) <= 10:  # Only show details for smaller datasets
                     st.subheader("Rule Details")
-                    # Convert to list for iteration
-                    rules_list = df_display.to_dict('records')
+                    # Convert to list for iteration - ensure we have a DataFrame
+                    import pandas as pd
+                    if isinstance(df_display, pd.DataFrame):
+                        rules_list = df_display.to_dict('records')
+                    else:
+                        rules_list = []
                     for rule in rules_list:
                         with st.expander(f"{rule['Status']} {rule['Rule Name']}", expanded=False):
                             col1, col2, col3 = st.columns([2, 1, 1])
