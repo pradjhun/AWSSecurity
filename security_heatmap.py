@@ -159,8 +159,7 @@ class SecurityRiskHeatmap:
                 [1.0, '#E53E3E']     # Critical risk - Red
             ],
             colorbar=dict(
-                title="Risk Level",
-                titleside="right",
+                title=dict(text="Risk Level", side="right"),
                 tickmode="array",
                 tickvals=[0, 25, 50, 75, 100],
                 ticktext=["Low", "Medium", "High", "Critical", "Severe"],
@@ -224,8 +223,7 @@ class SecurityRiskHeatmap:
                 [1.0, '#E53E3E']
             ],
             colorbar=dict(
-                title="Risk Level",
-                titleside="right",
+                title=dict(text="Risk Level", side="right"),
                 tickmode="array",
                 tickvals=[0, 25, 50, 75, 100],
                 ticktext=["Low", "Medium", "High", "Critical", "Severe"]
@@ -352,8 +350,7 @@ class SecurityRiskHeatmap:
                 [1.0, '#E53E3E']
             ],
             colorbar=dict(
-                title="Threat Activity",
-                titleside="right"
+                title=dict(text="Threat Activity", side="right")
             ),
             hoveremplate='<b>%{y}</b><br>Time: %{x}<br>Activity Level: %{z}<extra></extra>'
         ))
