@@ -590,8 +590,9 @@ def show_overview_tab(security_monitors, dashboard_components):
                     </div>
                     """, unsafe_allow_html=True)
             
-            # View all link
-            st.markdown('<a href="#" style="color: #4F7CFF; text-decoration: none; font-weight: 500;">View all alerts</a>', unsafe_allow_html=True)
+            # View all alerts button
+            if st.button("View all alerts", key="view_all_alerts_btn"):
+                st.session_state.show_all_alerts = True
         
         with col2:
             st.subheader("Active Resources")
@@ -703,6 +704,130 @@ def show_overview_tab(security_monitors, dashboard_components):
                 st.info("Redirecting to Enhanced Checks tab...")
                 st.session_state.run_enhanced_checks = True
 
+        # Comprehensive alerts view
+        if getattr(st.session_state, 'show_all_alerts', False):
+            st.divider()
+            st.subheader("🚨 All Security Alerts & Findings")
+            
+            # Close button
+            col1, col2 = st.columns([8, 1])
+            with col2:
+                if st.button("❌ Close", key="close_all_alerts"):
+                    st.session_state.show_all_alerts = False
+                    st.rerun()
+            
+            # Get comprehensive alerts data
+            alerts_data = security_monitors.get_alerts_and_threats_data()
+            threats_data = security_monitors.get_threats_data()
+            
+            # Tabs for different alert types
+            alert_tab1, alert_tab2, alert_tab3 = st.tabs(["🛡️ GuardDuty Findings", "📊 CloudTrail Events", "⚠️ Configuration Issues"])
+            
+            with alert_tab1:
+                guardduty_findings = alerts_data.get('guardduty_findings', [])
+                if guardduty_findings:
+                    st.markdown(f"**Total GuardDuty Findings:** {len(guardduty_findings)}")
+                    
+                    # Create DataFrame for better display
+                    findings_display = []
+                    for finding in guardduty_findings:
+                        findings_display.append({
+                            'Title': finding.get('title', 'Unknown Finding'),
+                            'Type': finding.get('type', 'Unknown'),
+                            'Severity': finding.get('severity', 0),
+                            'Service': finding.get('service', 'Unknown'),
+                            'Region': finding.get('region', 'Unknown'),
+                            'Resource': finding.get('resource_type', 'Unknown'),
+                            'Updated': finding.get('updated_at', 'Unknown')
+                        })
+                    
+                    if findings_display:
+                        df_findings = pd.DataFrame(findings_display)
+                        
+                        # Apply styling based on severity
+                        def highlight_findings(row):
+                            severity = row['Severity']
+                            if severity >= 8.5:
+                                return ['background-color: #ffebee'] * len(row)
+                            elif severity >= 7.0:
+                                return ['background-color: #fff3e0'] * len(row)
+                            elif severity >= 5.0:
+                                return ['background-color: #e3f2fd'] * len(row)
+                            else:
+                                return [''] * len(row)
+                        
+                        styled_df = df_findings.style.apply(highlight_findings, axis=1)
+                        st.dataframe(styled_df, use_container_width=True)
+                else:
+                    st.success("No GuardDuty findings detected")
+            
+            with alert_tab2:
+                recent_events = overview_data.get('recent_events', [])
+                if recent_events:
+                    st.markdown(f"**Recent CloudTrail Events:** {len(recent_events)}")
+                    
+                    events_display = []
+                    for event in recent_events:
+                        events_display.append({
+                            'Event Name': event.get('event_name', 'Unknown'),
+                            'User': event.get('username', 'Unknown'),
+                            'Source IP': event.get('source_ip_address', 'Unknown'),
+                            'Region': event.get('aws_region', 'Unknown'),
+                            'Time': event.get('event_time', 'Unknown'),
+                            'User Agent': event.get('user_agent', 'Unknown')[:50] + '...' if event.get('user_agent', '') else 'Unknown'
+                        })
+                    
+                    if events_display:
+                        df_events = pd.DataFrame(events_display)
+                        st.dataframe(df_events, use_container_width=True)
+                else:
+                    st.info("No recent CloudTrail events available")
+            
+            with alert_tab3:
+                # Configuration issues from security checks
+                config_issues = []
+                
+                # Check for common configuration issues
+                if overview_data.get('public_buckets', 0) > 0:
+                    config_issues.append({
+                        'Issue': 'Public S3 Buckets',
+                        'Severity': 'HIGH',
+                        'Count': overview_data.get('public_buckets', 0),
+                        'Description': 'S3 buckets are publicly accessible',
+                        'Recommendation': 'Review and restrict public access to S3 buckets'
+                    })
+                
+                if overview_data.get('mfa_disabled_users', 0) > 0:
+                    config_issues.append({
+                        'Issue': 'MFA Disabled Users',
+                        'Severity': 'MEDIUM',
+                        'Count': overview_data.get('mfa_disabled_users', 0),
+                        'Description': 'IAM users without MFA enabled',
+                        'Recommendation': 'Enable MFA for all IAM users'
+                    })
+                
+                if overview_data.get('unused_access_keys', 0) > 0:
+                    config_issues.append({
+                        'Issue': 'Unused Access Keys',
+                        'Severity': 'MEDIUM',
+                        'Count': overview_data.get('unused_access_keys', 0),
+                        'Description': 'Access keys that have not been used recently',
+                        'Recommendation': 'Review and deactivate unused access keys'
+                    })
+                
+                if config_issues:
+                    st.markdown(f"**Configuration Issues Found:** {len(config_issues)}")
+                    
+                    for issue in config_issues:
+                        severity_color = "#E53E3E" if issue['Severity'] == 'HIGH' else "#D69E2E" if issue['Severity'] == 'MEDIUM' else "#38A169"
+                        
+                        with st.expander(f"⚠️ {issue['Issue']} ({issue['Count']} items)"):
+                            st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{issue['Severity']}</span>", unsafe_allow_html=True)
+                            st.markdown(f"**Description:** {issue['Description']}")
+                            st.markdown(f"**Recommendation:** {issue['Recommendation']}")
+                else:
+                    st.success("No configuration issues detected")
+        
         # Security recommendations
         st.subheader("🎯 Security Recommendations")
         st.markdown("Implement these recommendations to improve your security score:")
