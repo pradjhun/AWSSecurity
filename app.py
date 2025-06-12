@@ -225,21 +225,13 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Main header with SecureVision-inspired styling and New Alert button
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.markdown("""
-        <div class="main-header">
-            <h1>🛡️ AWS Security Dashboard</h1>
-            <p>Comprehensive security monitoring and threat detection for your AWS infrastructure</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
-        if st.button("+ New Alert", type="primary", key="new_alert_btn"):
-            st.info("Alert creation functionality would be integrated with AWS CloudWatch or SNS")
+    # Main header with SecureVision-inspired styling
+    st.markdown("""
+    <div class="main-header">
+        <h1>🛡️ AWS Security Dashboard</h1>
+        <p>Comprehensive security monitoring and threat detection for your AWS infrastructure</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar for AWS configuration
     with st.sidebar:
@@ -470,11 +462,11 @@ def show_overview_tab(security_monitors, dashboard_components):
             """, unsafe_allow_html=True)
         
         with col3:
-            new_alerts = overview_data.get('new_alerts', 3)  # Example from SecureVision theme
+            active_monitors = overview_data.get('active_monitors', len(overview_data.get('security_groups', [])))
             st.markdown(f"""
             <div class="metric-card">
-                <div class="metric-value" style="color: #D69E2E;">{new_alerts}</div>
-                <div class="metric-label">New Alerts</div>
+                <div class="metric-value" style="color: #38A169;">{active_monitors}</div>
+                <div class="metric-label">Active Monitors</div>
             </div>
             """, unsafe_allow_html=True)
         
