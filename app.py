@@ -14,6 +14,7 @@ from utils import format_timestamp, calculate_security_score, get_severity_color
 from enhanced_security_checks import EnhancedSecurityChecks
 from export_manager import ExportManager
 from trivy_integration import TrivyIntegratedScanner
+from security_heatmap import SecurityRiskHeatmap
 import json
 
 # Page configuration
@@ -365,10 +366,12 @@ def main():
     # Initialize security monitors and dashboard components
     security_monitors = SecurityMonitors(st.session_state.aws_client)
     dashboard_components = DashboardComponents()
+    security_heatmap = SecurityRiskHeatmap(st.session_state.aws_client)
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
         "🏠 Overview",
+        "🔥 Risk Heatmap",
         "👤 IAM Security", 
         "🌐 Network Security",
         "🛡️ Data Protection",
@@ -385,36 +388,39 @@ def main():
         show_overview_tab(security_monitors, dashboard_components)
     
     with tab2:
-        show_iam_security_tab(security_monitors, dashboard_components)
+        show_risk_heatmap_tab(security_monitors, dashboard_components, security_heatmap)
     
     with tab3:
-        show_network_security_tab(security_monitors, dashboard_components)
+        show_iam_security_tab(security_monitors, dashboard_components)
     
     with tab4:
-        show_data_protection_tab(security_monitors, dashboard_components)
+        show_network_security_tab(security_monitors, dashboard_components)
     
     with tab5:
-        show_compliance_tab(security_monitors, dashboard_components)
+        show_data_protection_tab(security_monitors, dashboard_components)
     
     with tab6:
-        show_alerts_threats_tab(security_monitors, dashboard_components)
+        show_compliance_tab(security_monitors, dashboard_components)
     
     with tab7:
-        show_enhanced_checks_tab(security_monitors, dashboard_components)
+        show_alerts_threats_tab(security_monitors, dashboard_components)
     
     with tab8:
-        show_vulnerability_scanner_tab(security_monitors, dashboard_components)
+        show_enhanced_checks_tab(security_monitors, dashboard_components)
     
     with tab9:
-        show_ai_recommendations_tab(security_monitors, dashboard_components)
+        show_vulnerability_scanner_tab(security_monitors, dashboard_components)
     
     with tab10:
-        show_owasp_llm_tab(security_monitors, dashboard_components)
+        show_ai_recommendations_tab(security_monitors, dashboard_components)
     
     with tab11:
+        show_owasp_llm_tab(security_monitors, dashboard_components)
+    
+    with tab12:
         show_export_reports_tab(security_monitors, dashboard_components)
 
-def show_overview_tab(security_monitors, dashboard_components):
+def show_overview_tab(security_monitors, dashboard_components, security_heatmap):
     st.header("Security Overview")
     
     try:
@@ -507,22 +513,83 @@ def show_overview_tab(security_monitors, dashboard_components):
             total_regions = overview_data.get('total_regions', 1)
             st.metric("Monitored Regions", total_regions)
         
-        # Charts row
+        # Animated Security Risk Heatmap Section
+        st.subheader("🔥 Security Risk Heatmap")
+        
+        # Get data for heatmap
+        compliance_data = security_monitors.get_compliance_data()
+        alerts_data = security_monitors.get_alerts_and_threats_data()
+        selected_regions = getattr(st.session_state, 'selected_regions', ['us-east-1'])
+        
+        # Create heatmap tabs
+        heatmap_tab1, heatmap_tab2, heatmap_tab3 = st.tabs(["🏢 Service Risks", "🌍 Regional Risks", "⚡ Real-time Risk"])
+        
+        with heatmap_tab1:
+            service_heatmap = security_heatmap.create_service_risk_heatmap(
+                overview_data, compliance_data, alerts_data
+            )
+            st.plotly_chart(service_heatmap, use_container_width=True)
+            
+            # Risk level indicators
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown('<div class="alert-badge alert-low">🟢 Low Risk (0-25)</div>', unsafe_allow_html=True)
+            with col2:
+                st.markdown('<div class="alert-badge alert-medium">🔵 Medium Risk (26-50)</div>', unsafe_allow_html=True)
+            with col3:
+                st.markdown('<div class="alert-badge alert-high">🟡 High Risk (51-75)</div>', unsafe_allow_html=True)
+            with col4:
+                st.markdown('<div class="alert-badge alert-critical">🔴 Critical Risk (76-100)</div>', unsafe_allow_html=True)
+        
+        with heatmap_tab2:
+            if len(selected_regions) > 1:
+                regional_heatmap = security_heatmap.create_regional_risk_heatmap(
+                    overview_data, selected_regions
+                )
+                if regional_heatmap:
+                    st.plotly_chart(regional_heatmap, use_container_width=True)
+                else:
+                    st.info("Regional risk data not available")
+            else:
+                st.info("Select multiple regions in the sidebar to view regional risk distribution")
+        
+        with heatmap_tab3:
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                risk_gauge = security_heatmap.create_real_time_risk_gauge(overview_data)
+                st.plotly_chart(risk_gauge, use_container_width=True)
+            
+            with col2:
+                threat_timeline = security_heatmap.create_threat_timeline_heatmap(alerts_data)
+                if threat_timeline:
+                    st.plotly_chart(threat_timeline, use_container_width=True)
+                else:
+                    st.info("No threat timeline data available")
+        
+        # Charts row for traditional metrics
+        st.subheader("📊 Security Metrics")
         col1, col2 = st.columns(2)
         
         with col1:
             # Security score trends
             if overview_data.get('security_trends'):
-                dashboard_components.create_security_score_chart(overview_data['security_trends'])
+                fig = dashboard_components.create_security_score_chart(overview_data['security_trends'])
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Security trends data not available")
         
         with col2:
             # Alert distribution or region distribution
             if overview_data.get('total_regions', 1) > 1 and overview_data.get('region_breakdown'):
-                dashboard_components.create_region_distribution_chart(overview_data['region_breakdown'])
+                fig = dashboard_components.create_region_distribution_chart(overview_data['region_breakdown'])
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
             elif overview_data.get('alert_distribution'):
-                dashboard_components.create_alert_distribution_chart(overview_data['alert_distribution'])
+                fig = dashboard_components.create_alert_distribution_chart(overview_data['alert_distribution'])
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Alert distribution data not available")
         
