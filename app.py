@@ -346,21 +346,7 @@ def main():
     # Main dashboard content
     if not st.session_state.connected or not st.session_state.aws_client:
         st.warning("Please configure and connect to AWS using the sidebar to view the security dashboard.")
-        
-        # Show sample dashboard structure
-        st.subheader("Dashboard Preview")
-        st.info("This dashboard will display the following security monitoring sections once connected:")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Overall Security Score", "N/A", "N/A")
-        with col2:
-            st.metric("Critical Alerts", "N/A", "N/A")
-        with col3:
-            st.metric("IAM Users", "N/A", "N/A")
-        with col4:
-            st.metric("Security Groups", "N/A", "N/A")
-        
+        st.info("Once connected, you'll have access to comprehensive security monitoring across all AWS services.")
         return
     
     # Initialize security monitors and dashboard components
