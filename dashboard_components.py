@@ -21,8 +21,7 @@ class DashboardComponents:
         """Create security score trends chart"""
         try:
             if not trends_data or 'dates' not in trends_data or 'scores' not in trends_data:
-                st.info("No security trends data available")
-                return
+                return None
             
             fig = go.Figure()
             
@@ -44,10 +43,11 @@ class DashboardComponents:
                 showlegend=False
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            return fig
             
         except Exception as e:
             st.error(f"Error creating security score chart: {str(e)}")
+            return None
     
     def create_alert_distribution_chart(self, alert_data):
         """Create alert distribution pie chart"""
