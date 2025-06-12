@@ -356,6 +356,28 @@ class SecurityMonitors:
                 'compliance_trends': None
             }
     
+    def get_alerts_and_threats_data(self):
+        """Get alerts and threat detection data"""
+        threats_data = self.get_threats_data()
+        
+        # Transform the data to include guardduty_findings key expected by heatmap
+        guardduty_findings = []
+        for finding in threats_data.get('recent_findings', []):
+            guardduty_findings.append({
+                'title': finding.get('Title', ''),
+                'severity': finding.get('Severity', 'Low'),
+                'updated_at': finding.get('Updated', ''),
+                'type': finding.get('Type', ''),
+                'resource': finding.get('Resource', ''),
+                'region': finding.get('Region', '')
+            })
+        
+        # Return combined data structure
+        return {
+            **threats_data,
+            'guardduty_findings': guardduty_findings
+        }
+    
     def get_threats_data(self):
         """Get threat detection and security findings data"""
         try:
