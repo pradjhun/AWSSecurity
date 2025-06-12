@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
+import streamlit as st
 
 
 class SecurityRiskHeatmap:
@@ -88,6 +89,343 @@ class SecurityRiskHeatmap:
         })
         
         return service_risks
+    
+    def get_service_risk_explanation(self, service_name, risk_score, overview_data, compliance_data):
+        """Generate detailed explanation for why a service has a specific risk level"""
+        explanations = {
+            'IAM': self._get_iam_risk_explanation(risk_score, overview_data),
+            'S3': self._get_s3_risk_explanation(risk_score, overview_data),
+            'EC2': self._get_ec2_risk_explanation(risk_score, overview_data),
+            'CloudTrail': self._get_cloudtrail_risk_explanation(risk_score, compliance_data),
+            'GuardDuty': self._get_guardduty_risk_explanation(risk_score, overview_data),
+            'VPC': self._get_vpc_risk_explanation(risk_score, overview_data),
+            'KMS': self._get_kms_risk_explanation(risk_score, overview_data),
+            'Lambda': self._get_lambda_risk_explanation(risk_score, overview_data),
+            'RDS': self._get_rds_risk_explanation(risk_score, overview_data),
+            'EKS': self._get_eks_risk_explanation(risk_score, overview_data)
+        }
+        
+        return explanations.get(service_name, self._get_generic_risk_explanation(service_name, risk_score))
+    
+    def get_service_remediation_guidance(self, service_name, risk_score):
+        """Generate specific remediation steps for each service"""
+        remediation_guides = {
+            'IAM': self._get_iam_remediation(risk_score),
+            'S3': self._get_s3_remediation(risk_score),
+            'EC2': self._get_ec2_remediation(risk_score),
+            'CloudTrail': self._get_cloudtrail_remediation(risk_score),
+            'GuardDuty': self._get_guardduty_remediation(risk_score),
+            'VPC': self._get_vpc_remediation(risk_score),
+            'KMS': self._get_kms_remediation(risk_score),
+            'Lambda': self._get_lambda_remediation(risk_score),
+            'RDS': self._get_rds_remediation(risk_score),
+            'EKS': self._get_eks_remediation(risk_score)
+        }
+        
+        return remediation_guides.get(service_name, self._get_generic_remediation(service_name, risk_score))
+    
+    def _get_iam_risk_explanation(self, risk_score, overview_data):
+        """Detailed IAM risk explanation"""
+        total_users = overview_data.get('total_users', 0)
+        mfa_enabled = overview_data.get('mfa_enabled_users', 0)
+        users_without_mfa = overview_data.get('users_without_mfa', 0)
+        
+        severity = self._get_severity_level(risk_score)
+        
+        explanation = {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [],
+            'impact': '',
+            'urgency': ''
+        }
+        
+        if users_without_mfa > 0:
+            explanation['factors'].append(f"❌ {users_without_mfa} users without MFA enabled")
+        
+        if total_users > 0:
+            mfa_percentage = (mfa_enabled / total_users) * 100
+            if mfa_percentage < 50:
+                explanation['factors'].append(f"❌ Only {mfa_percentage:.1f}% of users have MFA enabled")
+            elif mfa_percentage < 90:
+                explanation['factors'].append(f"⚠️ {mfa_percentage:.1f}% of users have MFA enabled (target: 100%)")
+        
+        if risk_score >= 75:
+            explanation['impact'] = "🔴 Critical: High risk of account compromise and unauthorized access"
+            explanation['urgency'] = "Immediate action required - security breach risk"
+        elif risk_score >= 50:
+            explanation['impact'] = "🟡 High: Elevated risk of credential-based attacks"
+            explanation['urgency'] = "Action required within 24 hours"
+        else:
+            explanation['impact'] = "🟢 Medium: Acceptable risk level with room for improvement"
+            explanation['urgency'] = "Review and optimize when convenient"
+            
+        return explanation
+    
+    def _get_s3_risk_explanation(self, risk_score, overview_data):
+        """Detailed S3 risk explanation"""
+        total_buckets = overview_data.get('total_buckets', 0)
+        public_buckets = overview_data.get('public_buckets', 0)
+        encrypted_buckets = overview_data.get('encrypted_buckets', 0)
+        
+        severity = self._get_severity_level(risk_score)
+        
+        explanation = {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [],
+            'impact': '',
+            'urgency': ''
+        }
+        
+        if public_buckets > 0:
+            explanation['factors'].append(f"❌ {public_buckets} publicly accessible buckets")
+        
+        unencrypted_buckets = total_buckets - encrypted_buckets
+        if unencrypted_buckets > 0:
+            explanation['factors'].append(f"❌ {unencrypted_buckets} buckets without encryption")
+        
+        if total_buckets > 0:
+            encryption_percentage = (encrypted_buckets / total_buckets) * 100
+            if encryption_percentage < 100:
+                explanation['factors'].append(f"⚠️ Only {encryption_percentage:.1f}% of buckets are encrypted")
+        
+        if risk_score >= 75:
+            explanation['impact'] = "🔴 Critical: High risk of data exposure and compliance violations"
+            explanation['urgency'] = "Immediate action required - data breach risk"
+        elif risk_score >= 50:
+            explanation['impact'] = "🟡 High: Elevated risk of unauthorized data access"
+            explanation['urgency'] = "Action required within 2 hours"
+        else:
+            explanation['impact'] = "🟢 Medium: Data protection measures need enhancement"
+            explanation['urgency'] = "Review and secure within 24 hours"
+            
+        return explanation
+    
+    def _get_ec2_risk_explanation(self, risk_score, overview_data):
+        """Detailed EC2 risk explanation"""
+        security_groups = overview_data.get('security_groups', 0)
+        
+        severity = self._get_severity_level(risk_score)
+        
+        explanation = {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [],
+            'impact': '',
+            'urgency': ''
+        }
+        
+        if security_groups > 20:
+            explanation['factors'].append(f"⚠️ {security_groups} security groups (high complexity)")
+        elif security_groups > 10:
+            explanation['factors'].append(f"⚠️ {security_groups} security groups (moderate complexity)")
+        
+        explanation['factors'].append("🔍 Network access controls need review")
+        explanation['factors'].append("🔍 Instance security configurations require audit")
+        
+        if risk_score >= 75:
+            explanation['impact'] = "🔴 Critical: High risk of unauthorized network access"
+            explanation['urgency'] = "Immediate security group review required"
+        elif risk_score >= 50:
+            explanation['impact'] = "🟡 High: Network security gaps may exist"
+            explanation['urgency'] = "Security group audit within 4 hours"
+        else:
+            explanation['impact'] = "🟢 Medium: Standard network security monitoring needed"
+            explanation['urgency'] = "Regular security review recommended"
+            
+        return explanation
+    
+    def _get_generic_risk_explanation(self, service_name, risk_score):
+        """Generic risk explanation for services without specific logic"""
+        severity = self._get_severity_level(risk_score)
+        
+        return {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [f"🔍 {service_name} security assessment in progress"],
+            'impact': f"Security review needed for {service_name} service",
+            'urgency': "Regular monitoring and assessment recommended"
+        }
+    
+    def _get_severity_level(self, risk_score):
+        """Determine severity level based on risk score"""
+        if risk_score >= 80:
+            return "CRITICAL"
+        elif risk_score >= 60:
+            return "HIGH"
+        elif risk_score >= 40:
+            return "MEDIUM"
+        else:
+            return "LOW"
+    
+    def _get_iam_remediation(self, risk_score):
+        """IAM remediation guidance"""
+        steps = []
+        
+        if risk_score >= 75:
+            steps.extend([
+                "1. 🚨 IMMEDIATE: Enable MFA for all users without it",
+                "2. 🚨 IMMEDIATE: Review and rotate access keys older than 90 days",
+                "3. 🚨 IMMEDIATE: Audit user permissions and remove unnecessary privileges",
+                "4. 📋 Implement IAM password policy with strong requirements",
+                "5. 📋 Set up access key rotation schedule"
+            ])
+        elif risk_score >= 50:
+            steps.extend([
+                "1. 🔧 Enable MFA for users without it (priority: admin users)",
+                "2. 🔧 Review inactive users and disable unused accounts",
+                "3. 🔧 Implement least privilege access principle",
+                "4. 📋 Regular access review and cleanup"
+            ])
+        else:
+            steps.extend([
+                "1. ✅ Monitor MFA adoption rate",
+                "2. ✅ Regular permission audits",
+                "3. ✅ Implement automated access reviews"
+            ])
+        
+        return {
+            'priority': 'CRITICAL' if risk_score >= 75 else 'HIGH' if risk_score >= 50 else 'MEDIUM',
+            'steps': steps,
+            'timeline': '2-4 hours' if risk_score >= 75 else '1-2 days' if risk_score >= 50 else '1 week',
+            'tools': ['AWS IAM Console', 'AWS CLI', 'AWS Config']
+        }
+    
+    def _get_s3_remediation(self, risk_score):
+        """S3 remediation guidance"""
+        steps = []
+        
+        if risk_score >= 75:
+            steps.extend([
+                "1. 🚨 IMMEDIATE: Block public access on all buckets",
+                "2. 🚨 IMMEDIATE: Enable encryption for all unencrypted buckets",
+                "3. 🚨 IMMEDIATE: Review bucket policies and ACLs",
+                "4. 📋 Enable S3 access logging",
+                "5. 📋 Set up CloudTrail for S3 API calls"
+            ])
+        elif risk_score >= 50:
+            steps.extend([
+                "1. 🔧 Enable default encryption for buckets",
+                "2. 🔧 Review and tighten bucket policies",
+                "3. 🔧 Enable versioning for critical buckets",
+                "4. 📋 Regular access pattern review"
+            ])
+        else:
+            steps.extend([
+                "1. ✅ Monitor encryption status",
+                "2. ✅ Regular bucket policy audits",
+                "3. ✅ Implement lifecycle policies"
+            ])
+        
+        return {
+            'priority': 'CRITICAL' if risk_score >= 75 else 'HIGH' if risk_score >= 50 else 'MEDIUM',
+            'steps': steps,
+            'timeline': '1-2 hours' if risk_score >= 75 else '4-6 hours' if risk_score >= 50 else '2-3 days',
+            'tools': ['S3 Console', 'AWS CLI', 'S3 Bucket Policies']
+        }
+    
+    def _get_ec2_remediation(self, risk_score):
+        """EC2 remediation guidance"""
+        steps = []
+        
+        if risk_score >= 75:
+            steps.extend([
+                "1. 🚨 IMMEDIATE: Review security groups for 0.0.0.0/0 access",
+                "2. 🚨 IMMEDIATE: Remove unnecessary open ports",
+                "3. 🚨 IMMEDIATE: Enable VPC Flow Logs",
+                "4. 📋 Implement security group naming conventions",
+                "5. 📋 Set up automated security group monitoring"
+            ])
+        elif risk_score >= 50:
+            steps.extend([
+                "1. 🔧 Audit security group rules",
+                "2. 🔧 Implement least privilege network access",
+                "3. 🔧 Enable detailed monitoring",
+                "4. 📋 Regular security group cleanup"
+            ])
+        else:
+            steps.extend([
+                "1. ✅ Monitor security group changes",
+                "2. ✅ Regular network access reviews",
+                "3. ✅ Implement security group tagging"
+            ])
+        
+        return {
+            'priority': 'CRITICAL' if risk_score >= 75 else 'HIGH' if risk_score >= 50 else 'MEDIUM',
+            'steps': steps,
+            'timeline': '2-3 hours' if risk_score >= 75 else '1 day' if risk_score >= 50 else '3-5 days',
+            'tools': ['EC2 Console', 'VPC Console', 'AWS Config']
+        }
+    
+    def _get_generic_remediation(self, service_name, risk_score):
+        """Generic remediation guidance"""
+        return {
+            'priority': 'MEDIUM',
+            'steps': [
+                f"1. 🔍 Review {service_name} security best practices",
+                f"2. 📋 Implement {service_name} monitoring",
+                f"3. ✅ Regular {service_name} security audits"
+            ],
+            'timeline': '1-2 weeks',
+            'tools': ['AWS Console', 'AWS CLI']
+        }
+    
+    def _get_cloudtrail_risk_explanation(self, risk_score, compliance_data):
+        """CloudTrail risk explanation"""
+        return self._get_generic_risk_explanation("CloudTrail", risk_score)
+    
+    def _get_guardduty_risk_explanation(self, risk_score, overview_data):
+        """GuardDuty risk explanation"""
+        return self._get_generic_risk_explanation("GuardDuty", risk_score)
+    
+    def _get_vpc_risk_explanation(self, risk_score, overview_data):
+        """VPC risk explanation"""
+        return self._get_generic_risk_explanation("VPC", risk_score)
+    
+    def _get_kms_risk_explanation(self, risk_score, overview_data):
+        """KMS risk explanation"""
+        return self._get_generic_risk_explanation("KMS", risk_score)
+    
+    def _get_lambda_risk_explanation(self, risk_score, overview_data):
+        """Lambda risk explanation"""
+        return self._get_generic_risk_explanation("Lambda", risk_score)
+    
+    def _get_rds_risk_explanation(self, risk_score, overview_data):
+        """RDS risk explanation"""
+        return self._get_generic_risk_explanation("RDS", risk_score)
+    
+    def _get_eks_risk_explanation(self, risk_score, overview_data):
+        """EKS risk explanation"""
+        return self._get_generic_risk_explanation("EKS", risk_score)
+    
+    def _get_cloudtrail_remediation(self, risk_score):
+        """CloudTrail remediation guidance"""
+        return self._get_generic_remediation("CloudTrail", risk_score)
+    
+    def _get_guardduty_remediation(self, risk_score):
+        """GuardDuty remediation guidance"""
+        return self._get_generic_remediation("GuardDuty", risk_score)
+    
+    def _get_vpc_remediation(self, risk_score):
+        """VPC remediation guidance"""
+        return self._get_generic_remediation("VPC", risk_score)
+    
+    def _get_kms_remediation(self, risk_score):
+        """KMS remediation guidance"""
+        return self._get_generic_remediation("KMS", risk_score)
+    
+    def _get_lambda_remediation(self, risk_score):
+        """Lambda remediation guidance"""
+        return self._get_generic_remediation("Lambda", risk_score)
+    
+    def _get_rds_remediation(self, risk_score):
+        """RDS remediation guidance"""
+        return self._get_generic_remediation("RDS", risk_score)
+    
+    def _get_eks_remediation(self, risk_score):
+        """EKS remediation guidance"""
+        return self._get_generic_remediation("EKS", risk_score)
     
     def calculate_regional_risk_scores(self, overview_data, selected_regions):
         """Calculate risk scores for each monitored region"""

@@ -2557,20 +2557,131 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
         # Service Risk Heatmap
         st.subheader("🏢 AWS Service Risk Analysis")
         st.markdown("Color-coded intensity showing security risks across different AWS services over time")
+        st.markdown("💡 **Click on any service below for detailed risk analysis and remediation guidance**")
         
         service_heatmap = security_heatmap.create_service_risk_heatmap(
             overview_data, compliance_data, alerts_data
         )
         st.plotly_chart(service_heatmap, use_container_width=True, key="heatmap_service_risks")
         
+        # Interactive Service Risk Analysis
+        st.subheader("🔍 Interactive Service Analysis")
+        
+        # Calculate service risk scores for selection
+        service_risks = security_heatmap.calculate_service_risk_scores(overview_data, compliance_data, alerts_data)
+        
+        # Service selection for drill-down
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            selected_service = st.selectbox(
+                "Select a service for detailed risk analysis:",
+                options=list(service_risks.keys()),
+                help="Choose a service to view detailed security risk explanation and remediation steps"
+            )
+        
+        with col2:
+            if st.button("🔍 Analyze Service Risk", type="primary", key="analyze_service_risk"):
+                st.session_state.show_service_analysis = True
+                st.session_state.selected_service_analysis = selected_service
+        
+        # Display detailed analysis if requested
+        if getattr(st.session_state, 'show_service_analysis', False):
+            service_name = getattr(st.session_state, 'selected_service_analysis', selected_service)
+            risk_score = service_risks.get(service_name, 0)
+            
+            # Get detailed risk explanation
+            risk_explanation = security_heatmap.get_service_risk_explanation(
+                service_name, risk_score, overview_data, compliance_data
+            )
+            
+            # Get remediation guidance
+            remediation_guidance = security_heatmap.get_service_remediation_guidance(
+                service_name, risk_score
+            )
+            
+            # Display analysis in expandable container
+            with st.container():
+                st.markdown(f"### 🎯 Detailed Analysis: {service_name}")
+                
+                # Risk severity badge
+                severity = risk_explanation['severity']
+                severity_colors = {
+                    'CRITICAL': '#E53E3E',
+                    'HIGH': '#D69E2E', 
+                    'MEDIUM': '#3182CE',
+                    'LOW': '#38A169'
+                }
+                severity_color = severity_colors.get(severity, '#718096')
+                
+                st.markdown(f"""
+                <div style="background: white; padding: 1.5rem; border-radius: 12px; border: 2px solid {severity_color}; margin: 1rem 0;">
+                    <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                        <span style="background: {severity_color}; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; margin-right: 1rem;">
+                            {severity} RISK
+                        </span>
+                        <span style="font-size: 1.5rem; font-weight: 600; color: #2D3748;">
+                            Risk Score: {risk_score:.1f}/100
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Risk factors and impact
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("#### 🚨 Risk Factors")
+                    for factor in risk_explanation['factors']:
+                        st.markdown(f"• {factor}")
+                    
+                    st.markdown("#### 📊 Business Impact")
+                    st.markdown(f"**Impact Level:** {risk_explanation['impact']}")
+                    st.markdown(f"**Urgency:** {risk_explanation['urgency']}")
+                
+                with col2:
+                    st.markdown("#### 🛠️ Remediation Steps")
+                    st.markdown(f"**Priority:** {remediation_guidance['priority']}")
+                    st.markdown(f"**Timeline:** {remediation_guidance['timeline']}")
+                    
+                    for step in remediation_guidance['steps']:
+                        st.markdown(f"• {step}")
+                    
+                    st.markdown("#### 🔧 Recommended Tools")
+                    for tool in remediation_guidance['tools']:
+                        st.markdown(f"• {tool}")
+                
+                # Action buttons
+                st.markdown("#### 🎯 Quick Actions")
+                action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+                
+                with action_col1:
+                    if st.button("📋 Export Analysis", key="export_service_analysis"):
+                        st.info("Analysis exported to compliance report")
+                
+                with action_col2:
+                    if st.button("🔔 Create Alert", key="create_service_alert"):
+                        st.info("Monitoring alert created for this service")
+                
+                with action_col3:
+                    if st.button("📚 View Documentation", key="view_service_docs"):
+                        st.info("Opening AWS security best practices documentation")
+                
+                with action_col4:
+                    if st.button("❌ Close Analysis", key="close_service_analysis"):
+                        st.session_state.show_service_analysis = False
+                        st.rerun()
+        
         # Service risk insights
         col1, col2, col3 = st.columns(3)
+        highest_risk_service = max(service_risks.items(), key=lambda x: x[1])
+        lowest_risk_service = min(service_risks.items(), key=lambda x: x[1])
+        
         with col1:
-            st.metric("Highest Risk Service", "IAM", "Critical")
+            st.metric("Highest Risk Service", highest_risk_service[0], f"{highest_risk_service[1]:.1f}%")
         with col2:
-            st.metric("Most Stable Service", "KMS", "Low")
+            st.metric("Lowest Risk Service", lowest_risk_service[0], f"{lowest_risk_service[1]:.1f}%")
         with col3:
-            st.metric("Services Monitored", "10", "+2")
+            st.metric("Services Monitored", len(service_risks), "+2")
         
         st.divider()
         
