@@ -70,13 +70,34 @@ class SecurityRiskHeatmap:
                     cloudtrail_risk = 100 - ((compliant_ct / len(cloudtrail_rules)) * 100)
         service_risks['CloudTrail'] = cloudtrail_risk
         
-        # GuardDuty Risk
-        guardduty_risk = 20  # Default low risk
-        if alerts_data and alerts_data.get('guardduty_findings'):
-            finding_count = len(alerts_data['guardduty_findings'])
-            high_severity = sum(1 for f in alerts_data['guardduty_findings'] 
-                              if f.get('severity') == 'High')
-            guardduty_risk = min(100, finding_count * 15 + high_severity * 25)
+        # GuardDuty Risk - More accurate calculation
+        guardduty_risk = 10  # Default very low risk when no findings
+        detectors_enabled = overview_data.get('guardduty_detectors', 0)
+        
+        if detectors_enabled == 0:
+            # No GuardDuty detectors enabled - medium risk
+            guardduty_risk = 60
+        elif alerts_data and alerts_data.get('guardduty_findings'):
+            findings = alerts_data['guardduty_findings']
+            finding_count = len(findings)
+            
+            # Calculate risk based on severity distribution
+            critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
+            high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
+            medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
+            
+            # Risk calculation based on severity-weighted findings
+            guardduty_risk = min(100, 
+                critical_findings * 30 + 
+                high_findings * 20 + 
+                medium_findings * 10 + 
+                (finding_count * 5)  # Base risk per finding
+            )
+            
+            # Cap at reasonable levels unless truly critical
+            if critical_findings == 0 and high_findings <= 2:
+                guardduty_risk = min(guardduty_risk, 75)
+        
         service_risks['GuardDuty'] = guardduty_risk
         
         # Additional services with calculated risks
@@ -376,8 +397,61 @@ class SecurityRiskHeatmap:
         return self._get_generic_risk_explanation("CloudTrail", risk_score)
     
     def _get_guardduty_risk_explanation(self, risk_score, overview_data):
-        """GuardDuty risk explanation"""
-        return self._get_generic_risk_explanation("GuardDuty", risk_score)
+        """Detailed GuardDuty risk explanation"""
+        detectors_enabled = overview_data.get('guardduty_detectors', 0)
+        alerts_data = overview_data.get('alerts_data', {})
+        findings = alerts_data.get('guardduty_findings', []) if alerts_data else []
+        
+        severity = self._get_severity_level(risk_score)
+        
+        explanation = {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [],
+            'impact': '',
+            'urgency': ''
+        }
+        
+        # Check if GuardDuty is enabled
+        if detectors_enabled == 0:
+            explanation['factors'].append("❌ GuardDuty threat detection is not enabled")
+            explanation['factors'].append("⚠️ No real-time threat monitoring active")
+            explanation['factors'].append("⚠️ Missing malicious activity detection")
+        else:
+            explanation['factors'].append(f"✅ {detectors_enabled} GuardDuty detector(s) enabled")
+            
+            if findings:
+                finding_count = len(findings)
+                critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
+                high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
+                medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
+                
+                explanation['factors'].append(f"📊 Total findings: {finding_count}")
+                
+                if critical_findings > 0:
+                    explanation['factors'].append(f"🚨 {critical_findings} critical severity finding(s)")
+                if high_findings > 0:
+                    explanation['factors'].append(f"⚠️ {high_findings} high severity finding(s)")
+                if medium_findings > 0:
+                    explanation['factors'].append(f"⚡ {medium_findings} medium severity finding(s)")
+            else:
+                explanation['factors'].append("✅ No active security findings detected")
+        
+        # Set impact and urgency based on risk score and findings
+        if risk_score >= 80:
+            explanation['impact'] = "🔴 Critical: Active threats detected requiring immediate attention"
+            explanation['urgency'] = "Immediate response required - investigate all findings"
+        elif risk_score >= 60:
+            explanation['impact'] = "🟡 High: Security monitoring gaps or moderate threats detected"
+            explanation['urgency'] = "Action required within 4 hours"
+        elif risk_score >= 40:
+            explanation['impact'] = "🟡 Medium: Some security findings need review"
+            explanation['urgency'] = "Review findings within 24 hours"
+        else:
+            explanation['impact'] = "🟢 Low: Good threat detection posture"
+            explanation['urgency'] = "Routine monitoring and maintenance"
+            
+        return explanation
     
     def _get_vpc_risk_explanation(self, risk_score, overview_data):
         """VPC risk explanation"""
@@ -405,7 +479,45 @@ class SecurityRiskHeatmap:
     
     def _get_guardduty_remediation(self, risk_score):
         """GuardDuty remediation guidance"""
-        return self._get_generic_remediation("GuardDuty", risk_score)
+        steps = []
+        
+        if risk_score >= 80:
+            steps.extend([
+                "1. 🚨 IMMEDIATE: Investigate all critical and high severity findings",
+                "2. 🚨 IMMEDIATE: Block suspicious IP addresses identified in findings",
+                "3. 🚨 IMMEDIATE: Rotate compromised credentials if any are detected",
+                "4. 🔧 Review and enhance incident response procedures",
+                "5. 📋 Set up automated response for future critical findings"
+            ])
+        elif risk_score >= 60:
+            steps.extend([
+                "1. 🔧 Enable GuardDuty if not already active",
+                "2. 🔧 Review and investigate medium to high severity findings",
+                "3. 🔧 Configure GuardDuty notifications and alerts",
+                "4. 📋 Implement automated finding suppression for known false positives",
+                "5. 📋 Set up regular threat intelligence updates"
+            ])
+        elif risk_score >= 40:
+            steps.extend([
+                "1. ✅ Review GuardDuty findings and validate threat levels",
+                "2. ✅ Fine-tune GuardDuty detection sensitivity",
+                "3. ✅ Configure custom threat intelligence sources",
+                "4. 📋 Implement finding remediation workflows"
+            ])
+        else:
+            steps.extend([
+                "1. ✅ Monitor GuardDuty findings regularly",
+                "2. ✅ Maintain threat intelligence feeds",
+                "3. ✅ Conduct periodic security posture reviews",
+                "4. ✅ Keep GuardDuty service updated"
+            ])
+        
+        return {
+            'priority': 'CRITICAL' if risk_score >= 80 else 'HIGH' if risk_score >= 60 else 'MEDIUM',
+            'steps': steps,
+            'timeline': 'Immediate' if risk_score >= 80 else '2-4 hours' if risk_score >= 60 else '1-2 days',
+            'tools': ['GuardDuty Console', 'CloudWatch', 'Security Hub', 'SNS for notifications']
+        }
     
     def _get_vpc_remediation(self, risk_score):
         """VPC remediation guidance"""
