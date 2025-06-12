@@ -165,7 +165,7 @@ class SecurityRiskHeatmap:
                 ticktext=["Low", "Medium", "High", "Critical", "Severe"],
                 len=0.7
             ),
-            hovetemplate='<b>%{y}</b><br>Time: %{x}<br>Risk Score: %{z:.1f}<extra></extra>'
+            hovertemplate='<b>%{y}</b><br>Time: %{x}<br>Risk Score: %{z:.1f}<extra></extra>'
         ))
         
         fig.update_layout(
@@ -228,7 +228,7 @@ class SecurityRiskHeatmap:
                 tickvals=[0, 25, 50, 75, 100],
                 ticktext=["Low", "Medium", "High", "Critical", "Severe"]
             ),
-            hoveremplate='<b>%{y}</b><br>Category: %{x}<br>Risk Score: %{z:.1f}<extra></extra>'
+            hovertemplate='<b>%{y}</b><br>Category: %{x}<br>Risk Score: %{z:.1f}<extra></extra>'
         ))
         
         fig.update_layout(
@@ -352,7 +352,7 @@ class SecurityRiskHeatmap:
             colorbar=dict(
                 title=dict(text="Threat Activity", side="right")
             ),
-            hoveremplate='<b>%{y}</b><br>Time: %{x}<br>Activity Level: %{z}<extra></extra>'
+            hovertemplate='<b>%{y}</b><br>Time: %{x}<br>Activity Level: %{z}<extra></extra>'
         ))
         
         fig.update_layout(
