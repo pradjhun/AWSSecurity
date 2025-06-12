@@ -31,8 +31,214 @@ if 'connected' not in st.session_state:
     st.session_state.connected = False
 
 def main():
-    st.title("🔒 AWS Security Dashboard")
-    st.markdown("Comprehensive security monitoring for your AWS infrastructure")
+    # Custom CSS styling inspired by SecureVision theme
+    st.markdown("""
+    <style>
+    /* Main header styling */
+    .main-header {
+        background: linear-gradient(135deg, #4F7CFF 0%, #5B8CFF 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(79, 124, 255, 0.15);
+    }
+    
+    .main-header h1 {
+        color: white !important;
+        font-size: 2.5rem !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .main-header p {
+        color: rgba(255, 255, 255, 0.85) !important;
+        font-size: 1.1rem !important;
+        margin: 0.5rem 0 0 0 !important;
+        font-weight: 400 !important;
+    }
+    
+    /* Metric cards styling */
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid #E2E8F0;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: #2D3748;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #718096;
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+    
+    /* Alert badges */
+    .alert-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin: 0.25rem;
+    }
+    
+    .alert-critical {
+        background-color: #FED7D7;
+        color: #C53030;
+        border: 1px solid #FEB2B2;
+    }
+    
+    .alert-high {
+        background-color: #FFEAA7;
+        color: #D69E2E;
+        border: 1px solid #F6E05E;
+    }
+    
+    .alert-medium {
+        background-color: #BEE3F8;
+        color: #2B6CB0;
+        border: 1px solid #90CDF4;
+    }
+    
+    .alert-low {
+        background-color: #C6F6D5;
+        color: #276749;
+        border: 1px solid #9AE6B4;
+    }
+    
+    /* Status indicators */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 16px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-online {
+        background-color: #C6F6D5;
+        color: #276749;
+    }
+    
+    .status-offline {
+        background-color: #FED7D7;
+        color: #C53030;
+    }
+    
+    .status-limited {
+        background-color: #FFEAA7;
+        color: #D69E2E;
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #F8F9FA;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #F8F9FA;
+        padding: 0.5rem;
+        border-radius: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: white;
+        border-radius: 6px;
+        color: #4A5568;
+        font-weight: 500;
+        border: 1px solid #E2E8F0;
+        padding: 0.5rem 1rem;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #4F7CFF;
+        color: white;
+        border-color: #4F7CFF;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #4F7CFF 0%, #5B8CFF 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 124, 255, 0.3);
+    }
+    
+    /* Success/warning/error styling */
+    .stSuccess {
+        background-color: #C6F6D5;
+        border: 1px solid #9AE6B4;
+        border-radius: 8px;
+    }
+    
+    .stWarning {
+        background-color: #FFEAA7;
+        border: 1px solid #F6E05E;
+        border-radius: 8px;
+    }
+    
+    .stError {
+        background-color: #FED7D7;
+        border: 1px solid #FEB2B2;
+        border-radius: 8px;
+    }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Main header with SecureVision-inspired styling and New Alert button
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown("""
+        <div class="main-header">
+            <h1>🛡️ AWS Security Dashboard</h1>
+            <p>Comprehensive security monitoring and threat detection for your AWS infrastructure</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)  # Add spacing
+        if st.button("+ New Alert", type="primary", key="new_alert_btn"):
+            st.info("Alert creation functionality would be integrated with AWS CloudWatch or SNS")
     
     # Sidebar for AWS configuration
     with st.sidebar:
@@ -249,36 +455,57 @@ def show_overview_tab(security_monitors, dashboard_components):
             
             st.divider()
         
-        # Security score and key metrics
-        col1, col2, col3, col4, col5 = st.columns(5)
+        # Enhanced metric cards with SecureVision styling
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            security_score = calculate_security_score(overview_data)
-            st.metric(
-                "Overall Security Score",
-                f"{security_score}/100",
-                delta=f"{security_score - 85}" if security_score != 85 else None
-            )
+            critical_alerts = overview_data.get('critical_alerts', 0)
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="color: #E53E3E;">{critical_alerts}</div>
+                <div class="metric-label">Active Threats</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col2:
-            critical_alerts = overview_data.get('critical_alerts', 0)
-            st.metric(
-                "Critical Alerts",
-                critical_alerts,
-                delta=f"+{critical_alerts}" if critical_alerts > 0 else None
-            )
+            security_score = calculate_security_score(overview_data)
+            score_color = "#38A169" if security_score >= 90 else "#D69E2E" if security_score >= 70 else "#E53E3E"
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="color: {score_color};">{security_score}%</div>
+                <div class="metric-label">System Health</div>
+            </div>
+            """, unsafe_allow_html=True)
         
         with col3:
+            new_alerts = overview_data.get('new_alerts', 3)  # Example from SecureVision theme
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-value" style="color: #D69E2E;">{new_alerts}</div>
+                <div class="metric-label">New Alerts</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Additional metrics row
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
             iam_users = overview_data.get('iam_users', 0)
             st.metric("IAM Users", iam_users)
         
-        with col4:
+        with col2:
             security_groups = overview_data.get('security_groups', 0)
             st.metric("Security Groups", security_groups)
         
-        with col5:
+        with col3:
             s3_buckets = overview_data.get('s3_buckets', 0)
             st.metric("S3 Buckets", s3_buckets)
+        
+        with col4:
+            total_regions = overview_data.get('total_regions', 1)
+            st.metric("Monitored Regions", total_regions)
         
         # Charts row
         col1, col2 = st.columns(2)
@@ -299,15 +526,111 @@ def show_overview_tab(security_monitors, dashboard_components):
             else:
                 st.info("Alert distribution data not available")
         
-        # Recent security events
-        st.subheader("Recent Security Events")
-        recent_events = overview_data.get('recent_events', [])
+        # Enhanced alert sections with real AWS data
+        col1, col2 = st.columns(2)
         
-        if recent_events:
-            df_events = pd.DataFrame(recent_events)
-            st.dataframe(df_events, use_container_width=True)
-        else:
-            st.info("No recent security events found")
+        with col1:
+            st.subheader("Recent Alerts")
+            
+            # Get real AWS alerts from CloudTrail and GuardDuty
+            alerts_data = security_monitors.get_alerts_and_threats_data()
+            recent_events = overview_data.get('recent_events', [])
+            
+            # Combine and format alerts
+            all_alerts = []
+            
+            # Add GuardDuty findings as alerts
+            if alerts_data.get('guardduty_findings'):
+                for finding in alerts_data['guardduty_findings'][:4]:  # Show latest 4
+                    severity_map = {'High': 'critical', 'Medium': 'high', 'Low': 'medium'}
+                    severity = severity_map.get(finding.get('severity', 'Low'), 'low')
+                    
+                    all_alerts.append({
+                        "type": finding.get('title', 'Security Finding'),
+                        "time": format_timestamp(finding.get('updated_at', '')),
+                        "severity": severity
+                    })
+            
+            # Add CloudTrail events as alerts
+            if recent_events:
+                for event in recent_events[:2]:  # Show latest 2
+                    all_alerts.append({
+                        "type": f"{event.get('event_name', 'AWS API Call')} in {event.get('aws_region', 'Unknown')}",
+                        "time": format_timestamp(event.get('event_time', '')),
+                        "severity": "medium"
+                    })
+            
+            # If no real alerts, show informational message
+            if not all_alerts:
+                st.info("No recent security alerts detected. Your AWS environment appears secure.")
+            else:
+                for alert in all_alerts:
+                    severity = alert["severity"]
+                    icon = "🔴" if severity == "critical" else "🟡" if severity == "high" else "🔵" if severity == "medium" else "🟢"
+                    
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; padding: 0.75rem; margin: 0.5rem 0; background: white; border-radius: 8px; border-left: 4px solid {'#E53E3E' if severity == 'critical' else '#D69E2E' if severity == 'high' else '#3182CE' if severity == 'medium' else '#38A169'};">
+                        <span style="margin-right: 0.75rem; font-size: 1.2rem;">{icon}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #2D3748;">{alert["type"]}</div>
+                            <div style="font-size: 0.875rem; color: #718096;">{alert["time"]}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # View all link
+            st.markdown('<a href="#" style="color: #4F7CFF; text-decoration: none; font-weight: 500;">View all alerts</a>', unsafe_allow_html=True)
+        
+        with col2:
+            st.subheader("Active Resources")
+            
+            # Show real AWS resources with status
+            resource_data = []
+            
+            # Add EC2 instances
+            if overview_data.get('ec2_instances'):
+                for instance in overview_data['ec2_instances'][:3]:  # Show first 3
+                    state = instance.get('state', 'unknown')
+                    status = "online" if state == "running" else "offline" if state == "stopped" else "limited"
+                    
+                    resource_data.append({
+                        "device": instance.get('instance_id', 'Unknown Instance'),
+                        "location": instance.get('availability_zone', 'Unknown AZ'),
+                        "status": status
+                    })
+            
+            # Add S3 buckets
+            if overview_data.get('s3_bucket_details'):
+                for bucket in overview_data['s3_bucket_details'][:2]:  # Show first 2
+                    resource_data.append({
+                        "device": bucket.get('name', 'Unknown Bucket'),
+                        "location": bucket.get('region', 'Global'),
+                        "status": "online"
+                    })
+            
+            # If no real resources, show default info
+            if not resource_data:
+                st.info("Connect to AWS to view active resources and their status.")
+            else:
+                for resource in resource_data:
+                    status = resource["status"]
+                    status_color = "#38A169" if status == "online" else "#D69E2E" if status == "limited" else "#E53E3E"
+                    status_text = "Online" if status == "online" else "Limited" if status == "limited" else "Offline"
+                    
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; margin: 0.5rem 0; background: white; border-radius: 8px; border: 1px solid #E2E8F0;">
+                        <div>
+                            <div style="font-weight: 600; color: #2D3748;">{resource["device"]}</div>
+                            <div style="font-size: 0.875rem; color: #718096;">{resource["location"]}</div>
+                        </div>
+                        <span class="status-indicator status-{status}" style="background-color: {'#C6F6D5' if status == 'online' else '#FFEAA7' if status == 'limited' else '#FED7D7'}; color: {status_color}; padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.8rem; font-weight: 600;">
+                            {status_text}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Manage link
+            st.markdown('<a href="#" style="color: #4F7CFF; text-decoration: none; font-weight: 500;">Manage resources</a>', unsafe_allow_html=True)
         
         # One-click compliance report
         st.subheader("📄 Quick Actions")
