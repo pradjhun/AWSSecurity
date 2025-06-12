@@ -503,8 +503,118 @@ class SecurityRiskHeatmap:
         return self._get_generic_risk_explanation("Lambda", risk_score)
     
     def _get_rds_risk_explanation(self, risk_score, overview_data):
-        """RDS risk explanation"""
-        return self._get_generic_risk_explanation("RDS", risk_score)
+        """Detailed RDS risk explanation"""
+        severity = self._get_severity_level(risk_score)
+        
+        explanation = {
+            'severity': severity,
+            'risk_score': risk_score,
+            'factors': [],
+            'impact': '',
+            'urgency': '',
+            'detailed_findings': []
+        }
+        
+        # Get RDS instances and analyze security
+        try:
+            rds_client = self.aws_client.get_client('rds')
+            if rds_client:
+                instances = rds_client.describe_db_instances()
+                db_instances = instances.get('DBInstances', [])
+                
+                if not db_instances:
+                    explanation['factors'].append("ℹ️ No RDS instances found in current region")
+                else:
+                    explanation['factors'].append(f"📊 Total RDS instances: {len(db_instances)}")
+                    
+                    # Analyze security configurations
+                    unencrypted_instances = 0
+                    public_instances = 0
+                    backup_disabled = 0
+                    minor_version_upgrade_disabled = 0
+                    
+                    for instance in db_instances:
+                        db_id = instance.get('DBInstanceIdentifier', 'Unknown')
+                        
+                        # Check encryption
+                        if not instance.get('StorageEncrypted', False):
+                            unencrypted_instances += 1
+                            explanation['detailed_findings'].append({
+                                'type': 'Encryption Issue',
+                                'severity': 'HIGH',
+                                'resource': db_id,
+                                'description': f'RDS instance {db_id} does not have encryption at rest enabled',
+                                'engine': instance.get('Engine', 'Unknown'),
+                                'status': instance.get('DBInstanceStatus', 'Unknown')
+                            })
+                        
+                        # Check public accessibility
+                        if instance.get('PubliclyAccessible', False):
+                            public_instances += 1
+                            explanation['detailed_findings'].append({
+                                'type': 'Public Access',
+                                'severity': 'CRITICAL',
+                                'resource': db_id,
+                                'description': f'RDS instance {db_id} is publicly accessible',
+                                'engine': instance.get('Engine', 'Unknown'),
+                                'status': instance.get('DBInstanceStatus', 'Unknown')
+                            })
+                        
+                        # Check backup configuration
+                        if instance.get('BackupRetentionPeriod', 0) == 0:
+                            backup_disabled += 1
+                            explanation['detailed_findings'].append({
+                                'type': 'Backup Configuration',
+                                'severity': 'MEDIUM',
+                                'resource': db_id,
+                                'description': f'RDS instance {db_id} has automated backups disabled',
+                                'engine': instance.get('Engine', 'Unknown'),
+                                'status': instance.get('DBInstanceStatus', 'Unknown')
+                            })
+                        
+                        # Check minor version upgrade
+                        if not instance.get('AutoMinorVersionUpgrade', False):
+                            minor_version_upgrade_disabled += 1
+                    
+                    # Add factor summaries
+                    if unencrypted_instances > 0:
+                        explanation['factors'].append(f"❌ {unencrypted_instances} instance(s) without encryption")
+                    if public_instances > 0:
+                        explanation['factors'].append(f"🚨 {public_instances} publicly accessible instance(s)")
+                    if backup_disabled > 0:
+                        explanation['factors'].append(f"⚠️ {backup_disabled} instance(s) without automated backups")
+                    if minor_version_upgrade_disabled > 0:
+                        explanation['factors'].append(f"⚡ {minor_version_upgrade_disabled} instance(s) with disabled auto minor version upgrades")
+                    
+                    if not explanation['detailed_findings']:
+                        explanation['factors'].append("✅ All RDS instances follow security best practices")
+                        
+        except Exception as e:
+            explanation['factors'].append("⚠️ Unable to access RDS information - check AWS permissions")
+            explanation['detailed_findings'].append({
+                'type': 'Access Error',
+                'severity': 'MEDIUM',
+                'resource': 'RDS Service',
+                'description': f'Cannot retrieve RDS instance details: {str(e)}',
+                'engine': 'N/A',
+                'status': 'Error'
+            })
+        
+        # Set impact and urgency based on risk score
+        if risk_score >= 80:
+            explanation['impact'] = "🔴 Critical: Database security vulnerabilities detected"
+            explanation['urgency'] = "Immediate action required - secure database instances"
+        elif risk_score >= 60:
+            explanation['impact'] = "🟡 High: Database security configurations need attention"
+            explanation['urgency'] = "Action required within 4 hours"
+        elif risk_score >= 40:
+            explanation['impact'] = "🟡 Medium: Some database security improvements needed"
+            explanation['urgency'] = "Review and improve within 24 hours"
+        else:
+            explanation['impact'] = "🟢 Low: Good database security posture"
+            explanation['urgency'] = "Routine monitoring and maintenance"
+            
+        return explanation
     
     def _get_eks_risk_explanation(self, risk_score, overview_data):
         """EKS risk explanation"""

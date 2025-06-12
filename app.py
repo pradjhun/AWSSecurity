@@ -2633,33 +2633,58 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
                     st.markdown(f"**Urgency:** {risk_explanation['urgency']}")
                 
                 with col2:
-                    # Show detailed findings for GuardDuty
-                    if service_name == "GuardDuty" and 'detailed_findings' in risk_explanation:
+                    # Show detailed findings based on service type
+                    if 'detailed_findings' in risk_explanation and risk_explanation['detailed_findings']:
                         st.markdown("#### 🔍 Detailed Security Findings")
                         findings = risk_explanation['detailed_findings']
                         
-                        if findings:
-                            for i, finding in enumerate(findings, 1):
-                                severity_color = "#E53E3E" if finding['severity'] >= 8.5 else "#D69E2E" if finding['severity'] >= 7.0 else "#3182CE"
+                        for i, finding in enumerate(findings, 1):
+                            # Handle different finding formats for different services
+                            if service_name == "GuardDuty":
+                                # GuardDuty findings format
+                                severity_color = "#E53E3E" if finding.get('severity', 0) >= 8.5 else "#D69E2E" if finding.get('severity', 0) >= 7.0 else "#3182CE"
+                                title = finding.get('title', 'Unknown Finding')[:50]
                                 
-                                with st.expander(f"Finding {i}: {finding['title'][:50]}...", expanded=False):
-                                    st.markdown(f"**Type:** {finding['type']}")
-                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{finding['severity']:.1f}</span>", unsafe_allow_html=True)
-                                    st.markdown(f"**Service:** {finding['service']}")
-                                    st.markdown(f"**Region:** {finding['region']}")
-                                    st.markdown(f"**Resource Type:** {finding['resource_type']}")
-                                    if finding['resource_id'] != 'N/A':
+                                with st.expander(f"Finding {i}: {title}...", expanded=False):
+                                    st.markdown(f"**Type:** {finding.get('type', 'Unknown')}")
+                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{finding.get('severity', 0):.1f}</span>", unsafe_allow_html=True)
+                                    st.markdown(f"**Service:** {finding.get('service', 'Unknown')}")
+                                    st.markdown(f"**Region:** {finding.get('region', 'Unknown')}")
+                                    st.markdown(f"**Resource Type:** {finding.get('resource_type', 'Unknown')}")
+                                    if finding.get('resource_id', 'N/A') != 'N/A':
                                         st.markdown(f"**Resource ID:** {finding['resource_id']}")
-                                    st.markdown(f"**Description:** {finding['description']}")
-                                    st.markdown(f"**Created:** {finding['created_at']}")
-                                    st.markdown(f"**Updated:** {finding['updated_at']}")
-                        else:
-                            st.info("No detailed findings available")
+                                    st.markdown(f"**Description:** {finding.get('description', 'No description')}")
+                                    st.markdown(f"**Created:** {finding.get('created_at', 'Unknown')}")
+                                    st.markdown(f"**Updated:** {finding.get('updated_at', 'Unknown')}")
+                            
+                            elif service_name == "RDS":
+                                # RDS findings format
+                                severity_color = "#E53E3E" if finding.get('severity') == 'CRITICAL' else "#D69E2E" if finding.get('severity') == 'HIGH' else "#3182CE"
+                                
+                                with st.expander(f"Issue {i}: {finding.get('type', 'Configuration Issue')}", expanded=False):
+                                    st.markdown(f"**Type:** {finding.get('type', 'Unknown')}")
+                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{finding.get('severity', 'MEDIUM')}</span>", unsafe_allow_html=True)
+                                    st.markdown(f"**Resource:** {finding.get('resource', 'Unknown')}")
+                                    st.markdown(f"**Engine:** {finding.get('engine', 'Unknown')}")
+                                    st.markdown(f"**Status:** {finding.get('status', 'Unknown')}")
+                                    st.markdown(f"**Description:** {finding.get('description', 'No description')}")
+                            
+                            else:
+                                # Generic findings format for other services
+                                with st.expander(f"Finding {i}: {finding.get('type', 'Security Issue')}", expanded=False):
+                                    st.markdown(f"**Type:** {finding.get('type', 'Unknown')}")
+                                    st.markdown(f"**Severity:** {finding.get('severity', 'MEDIUM')}")
+                                    st.markdown(f"**Resource:** {finding.get('resource', 'Unknown')}")
+                                    st.markdown(f"**Description:** {finding.get('description', 'No description')}")
                     else:
-                        # For other services, show basic impact info only
+                        # No detailed findings available
                         st.markdown("#### ⚠️ Security Assessment")
-                        st.markdown(f"Service requires security review and monitoring")
-                        st.markdown(f"Risk assessment based on current configuration and best practices")
+                        if service_name == "RDS":
+                            st.markdown("Database security analysis based on current RDS configuration")
+                        elif service_name == "GuardDuty":
+                            st.markdown("Threat detection analysis - no active findings detected")
+                        else:
+                            st.markdown(f"{service_name} security assessment based on current configuration and best practices")
                 
                 # Simplified action buttons - focused on core functionality
                 col1, col2 = st.columns(2)
