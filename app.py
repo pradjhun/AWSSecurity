@@ -462,7 +462,13 @@ def show_overview_tab(security_monitors, dashboard_components):
             """, unsafe_allow_html=True)
         
         with col3:
-            active_monitors = overview_data.get('active_monitors', len(overview_data.get('security_groups', [])))
+            # Handle active monitors count properly
+            security_groups_data = overview_data.get('security_groups', 0)
+            if isinstance(security_groups_data, list):
+                active_monitors = len(security_groups_data)
+            else:
+                active_monitors = security_groups_data if isinstance(security_groups_data, int) else 0
+            
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-value" style="color: #38A169;">{active_monitors}</div>
