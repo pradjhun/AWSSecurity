@@ -2580,24 +2580,49 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
             )
         
         with col2:
-            if st.button("🔍 Analyze Service Risk", type="primary", key="analyze_service_risk"):
+            analyze_clicked = st.button("🔍 Analyze Service Risk", type="primary", key="analyze_service_risk")
+            if analyze_clicked:
                 st.session_state.show_service_analysis = True
                 st.session_state.selected_service_analysis = selected_service
         
-        # Display detailed analysis if requested
-        if getattr(st.session_state, 'show_service_analysis', False):
-            service_name = getattr(st.session_state, 'selected_service_analysis', selected_service)
+        # Display detailed analysis if requested or button was just clicked
+        if getattr(st.session_state, 'show_service_analysis', False) or analyze_clicked:
+            service_name = selected_service if analyze_clicked else getattr(st.session_state, 'selected_service_analysis', selected_service)
             risk_score = service_risks.get(service_name, 0)
             
-            # Get detailed risk explanation
-            risk_explanation = security_heatmap.get_service_risk_explanation(
-                service_name, risk_score, overview_data, compliance_data
-            )
-            
-            # Get remediation guidance
-            remediation_guidance = security_heatmap.get_service_remediation_guidance(
-                service_name, risk_score
-            )
+            try:
+                # Get detailed risk explanation
+                risk_explanation = security_heatmap.get_service_risk_explanation(
+                    service_name, risk_score, overview_data, compliance_data
+                )
+                
+                # Get remediation guidance
+                remediation_guidance = security_heatmap.get_service_remediation_guidance(
+                    service_name, risk_score
+                )
+            except Exception as e:
+                st.error(f"Error analyzing service {service_name}: {str(e)}")
+                st.info("Using basic analysis instead...")
+                
+                # Fallback analysis
+                risk_explanation = {
+                    'severity': 'MEDIUM',
+                    'risk_score': risk_score,
+                    'factors': [f"Service {service_name} requires security review"],
+                    'impact': 'Security assessment needed',
+                    'urgency': 'Review within 24 hours'
+                }
+                
+                remediation_guidance = {
+                    'priority': 'MEDIUM',
+                    'steps': [
+                        f"1. Review {service_name} security configuration",
+                        f"2. Apply security best practices for {service_name}",
+                        f"3. Monitor {service_name} for compliance"
+                    ],
+                    'timeline': '1-3 days',
+                    'tools': ['AWS Console', 'AWS CLI']
+                }
             
             # Display analysis in expandable container
             with st.container():
