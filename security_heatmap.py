@@ -70,33 +70,45 @@ class SecurityRiskHeatmap:
                     cloudtrail_risk = 100 - ((compliant_ct / len(cloudtrail_rules)) * 100)
         service_risks['CloudTrail'] = cloudtrail_risk
         
-        # GuardDuty Risk - More accurate calculation
-        guardduty_risk = 10  # Default very low risk when no findings
+        # GuardDuty Risk - Accurate calculation based on real data
+        guardduty_risk = 15  # Default low risk when properly configured
         detectors_enabled = overview_data.get('guardduty_detectors', 0)
         
         if detectors_enabled == 0:
-            # No GuardDuty detectors enabled - medium risk
-            guardduty_risk = 60
-        elif alerts_data and alerts_data.get('guardduty_findings'):
-            findings = alerts_data['guardduty_findings']
-            finding_count = len(findings)
-            
-            # Calculate risk based on severity distribution
-            critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
-            high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
-            medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
-            
-            # Risk calculation based on severity-weighted findings
-            guardduty_risk = min(100, 
-                critical_findings * 30 + 
-                high_findings * 20 + 
-                medium_findings * 10 + 
-                (finding_count * 5)  # Base risk per finding
-            )
-            
-            # Cap at reasonable levels unless truly critical
-            if critical_findings == 0 and high_findings <= 2:
-                guardduty_risk = min(guardduty_risk, 75)
+            # No GuardDuty detectors enabled - significant security gap
+            guardduty_risk = 65
+        else:
+            # Get actual GuardDuty findings from AWS
+            try:
+                detectors = self.aws_client.list_guardduty_detectors()
+                if detectors:
+                    findings = self.aws_client.list_guardduty_findings(detectors[0])
+                    finding_count = len(findings)
+                    
+                    if finding_count > 0:
+                        # Calculate risk based on actual finding severity
+                        critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
+                        high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
+                        medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
+                        low_findings = sum(1 for f in findings if f.get('Severity', 0) < 4.0)
+                        
+                        # Weighted risk calculation
+                        guardduty_risk = min(100, 
+                            critical_findings * 25 + 
+                            high_findings * 15 + 
+                            medium_findings * 8 + 
+                            low_findings * 3
+                        )
+                        
+                        # Reasonable caps based on severity distribution
+                        if critical_findings == 0 and high_findings <= 1:
+                            guardduty_risk = min(guardduty_risk, 45)
+                    else:
+                        # GuardDuty enabled but no findings - good security posture
+                        guardduty_risk = 15
+            except Exception:
+                # Error accessing GuardDuty - assume medium risk
+                guardduty_risk = 50
         
         service_risks['GuardDuty'] = guardduty_risk
         
@@ -399,8 +411,16 @@ class SecurityRiskHeatmap:
     def _get_guardduty_risk_explanation(self, risk_score, overview_data):
         """Detailed GuardDuty risk explanation"""
         detectors_enabled = overview_data.get('guardduty_detectors', 0)
-        alerts_data = overview_data.get('alerts_data', {})
-        findings = alerts_data.get('guardduty_findings', []) if alerts_data else []
+        
+        # Get GuardDuty findings directly from AWS client
+        findings = []
+        if detectors_enabled > 0:
+            try:
+                detectors = self.aws_client.list_guardduty_detectors()
+                if detectors:
+                    findings = self.aws_client.list_guardduty_findings(detectors[0])
+            except Exception:
+                findings = []
         
         severity = self._get_severity_level(risk_score)
         

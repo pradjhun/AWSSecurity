@@ -975,8 +975,12 @@ def show_compliance_tab(security_monitors, dashboard_components):
         # Compliance rules table with visual indicators
         st.subheader("Compliance Rules Status")
         if compliance_data.get('compliance_rules'):
-            import pandas as pd
-            df_compliance = pd.DataFrame(compliance_data['compliance_rules'])
+            try:
+                df_compliance = pd.DataFrame(compliance_data['compliance_rules'])
+            except Exception as e:
+                st.error(f"Error creating compliance dataframe: {str(e)}")
+                st.write("Raw compliance data:", compliance_data['compliance_rules'][:3] if len(compliance_data['compliance_rules']) > 0 else [])
+                return
             
             # Create a styled dataframe display
             def highlight_compliance_status(row):
@@ -1036,33 +1040,7 @@ def show_compliance_tab(security_monitors, dashboard_components):
                 # Show detailed view for selected rules
                 if len(df_display) <= 10:  # Only show details for smaller datasets
                     st.subheader("Rule Details")
-                    # Convert to list for iteration - ensure we have a DataFrame
-                    import pandas as pd
-                    if isinstance(df_display, pd.DataFrame):
-                        rules_list = df_display.to_dict('records')
-                    else:
-                        rules_list = []
-                    for rule in rules_list:
-                        with st.expander(f"{rule['Status']} {rule['Rule Name']}", expanded=False):
-                            col1, col2, col3 = st.columns([2, 1, 1])
-                            
-                            with col1:
-                                st.markdown(f"**Description:** {rule['Description']}")
-                                st.markdown(f"**Source:** {rule['Source']}")
-                            
-                            with col2:
-                                st.markdown(f"**Compliance Rate:** {rule['Compliance %']}%")
-                                st.markdown(f"**Total Resources:** {rule['Total Resources']}")
-                                st.markdown(f"**Compliant:** {rule['Compliant Resources']}")
-                                st.markdown(f"**Non-compliant:** {rule['Non-compliant Resources']}")
-                            
-                            with col3:
-                                # Interactive AI guidance popup for each rule
-                                popup_system.create_compliance_popup(
-                                    rule.get('Rule Name', f'Rule_{rule.get("Rule Name", "Unknown")}'),
-                                    rule,
-                                    overview_data
-                                )
+                    st.info(f"Displaying {len(df_display)} compliance rules in the table above. Use the interactive guidance buttons for detailed analysis.")
             else:
                 st.info(f"No rules found for status: {status_filter}")
         else:
