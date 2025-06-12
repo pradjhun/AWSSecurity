@@ -454,6 +454,23 @@ class SecurityRiskHeatmap:
                     explanation['factors'].append(f"⚠️ {high_findings} high severity finding(s)")
                 if medium_findings > 0:
                     explanation['factors'].append(f"⚡ {medium_findings} medium severity finding(s)")
+                
+                # Add detailed findings information
+                explanation['detailed_findings'] = []
+                for finding in findings[:10]:  # Show top 10 findings
+                    finding_detail = {
+                        'title': finding.get('Title', 'Unknown Finding'),
+                        'type': finding.get('Type', 'Unknown'),
+                        'severity': finding.get('Severity', 0),
+                        'description': finding.get('Description', 'No description available'),
+                        'service': finding.get('Service', {}).get('ServiceName', 'Unknown Service'),
+                        'region': finding.get('Region', 'Unknown'),
+                        'created_at': finding.get('CreatedAt', ''),
+                        'updated_at': finding.get('UpdatedAt', ''),
+                        'resource_type': finding.get('Resource', {}).get('ResourceType', 'Unknown'),
+                        'resource_id': finding.get('Resource', {}).get('InstanceDetails', {}).get('InstanceId', 'N/A')
+                    }
+                    explanation['detailed_findings'].append(finding_detail)
             else:
                 explanation['factors'].append("✅ No active security findings detected")
         

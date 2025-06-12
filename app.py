@@ -2633,34 +2633,42 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
                     st.markdown(f"**Urgency:** {risk_explanation['urgency']}")
                 
                 with col2:
-                    st.markdown("#### 🛠️ Remediation Steps")
-                    st.markdown(f"**Priority:** {remediation_guidance['priority']}")
-                    st.markdown(f"**Timeline:** {remediation_guidance['timeline']}")
-                    
-                    for step in remediation_guidance['steps']:
-                        st.markdown(f"• {step}")
-                    
-                    st.markdown("#### 🔧 Recommended Tools")
-                    for tool in remediation_guidance['tools']:
-                        st.markdown(f"• {tool}")
+                    # Show detailed findings for GuardDuty
+                    if service_name == "GuardDuty" and 'detailed_findings' in risk_explanation:
+                        st.markdown("#### 🔍 Detailed Security Findings")
+                        findings = risk_explanation['detailed_findings']
+                        
+                        if findings:
+                            for i, finding in enumerate(findings, 1):
+                                severity_color = "#E53E3E" if finding['severity'] >= 8.5 else "#D69E2E" if finding['severity'] >= 7.0 else "#3182CE"
+                                
+                                with st.expander(f"Finding {i}: {finding['title'][:50]}...", expanded=False):
+                                    st.markdown(f"**Type:** {finding['type']}")
+                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{finding['severity']:.1f}</span>", unsafe_allow_html=True)
+                                    st.markdown(f"**Service:** {finding['service']}")
+                                    st.markdown(f"**Region:** {finding['region']}")
+                                    st.markdown(f"**Resource Type:** {finding['resource_type']}")
+                                    if finding['resource_id'] != 'N/A':
+                                        st.markdown(f"**Resource ID:** {finding['resource_id']}")
+                                    st.markdown(f"**Description:** {finding['description']}")
+                                    st.markdown(f"**Created:** {finding['created_at']}")
+                                    st.markdown(f"**Updated:** {finding['updated_at']}")
+                        else:
+                            st.info("No detailed findings available")
+                    else:
+                        # For other services, show basic impact info only
+                        st.markdown("#### ⚠️ Security Assessment")
+                        st.markdown(f"Service requires security review and monitoring")
+                        st.markdown(f"Risk assessment based on current configuration and best practices")
                 
-                # Action buttons
-                st.markdown("#### 🎯 Quick Actions")
-                action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+                # Simplified action buttons - focused on core functionality
+                col1, col2 = st.columns(2)
                 
-                with action_col1:
+                with col1:
                     if st.button("📋 Export Analysis", key="export_service_analysis"):
                         st.info("Analysis exported to compliance report")
                 
-                with action_col2:
-                    if st.button("🔔 Create Alert", key="create_service_alert"):
-                        st.info("Monitoring alert created for this service")
-                
-                with action_col3:
-                    if st.button("📚 View Documentation", key="view_service_docs"):
-                        st.info("Opening AWS security best practices documentation")
-                
-                with action_col4:
+                with col2:
                     if st.button("❌ Close Analysis", key="close_service_analysis"):
                         st.session_state.show_service_analysis = False
                         st.rerun()
