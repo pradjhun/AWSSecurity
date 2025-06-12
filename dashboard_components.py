@@ -113,8 +113,7 @@ class DashboardComponents:
         """Create policy changes chart"""
         try:
             if not policy_data or 'dates' not in policy_data or 'changes' not in policy_data:
-                st.info("No policy changes data available")
-                return
+                return None
             
             fig = go.Figure()
             
@@ -135,10 +134,11 @@ class DashboardComponents:
                 showlegend=False
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            return fig
             
         except Exception as e:
             st.error(f"Error creating policy changes chart: {str(e)}")
+            return None
     
     def create_security_group_chart(self, sg_data):
         """Create security group rules chart"""
@@ -543,7 +543,6 @@ class DashboardComponents:
                 font=dict(size=12)
             )
             
-            st.plotly_chart(fig, use_container_width=True)
             return fig
             
         except Exception as e:
