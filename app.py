@@ -1578,128 +1578,104 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
         col1, col2 = st.columns(2)
         
         with col1:
-            run_database_checks = st.checkbox("Database Security Assessment", value=True)
-            run_container_checks = st.checkbox("Container & Serverless Security", value=True)
+            run_database_checks = st.checkbox("Database Security Assessment", value=False)
+            run_container_checks = st.checkbox("Container & Serverless Security", value=False)
         
         with col2:
-            run_advanced_iam = st.checkbox("Advanced IAM Analysis", value=True)
-            run_network_deep_dive = st.checkbox("Network Security Deep Dive", value=True)
+            run_advanced_iam = st.checkbox("Advanced IAM Analysis", value=False)
+            run_network_deep_dive = st.checkbox("Network Security Deep Dive", value=False)
         
-        if st.button("Run Enhanced Security Checks", type="primary"):
+        # Add session state management to prevent automatic execution
+        if 'enhanced_checks_running' not in st.session_state:
+            st.session_state.enhanced_checks_running = False
+        
+        run_checks_button = st.button("Run Enhanced Security Checks", type="primary", disabled=st.session_state.enhanced_checks_running)
+        
+        if run_checks_button and not st.session_state.enhanced_checks_running:
+            st.session_state.enhanced_checks_running = True
+            
             with st.spinner("Running comprehensive security assessments..."):
                 all_findings = []
                 
                 if run_database_checks:
                     st.info("Running database security checks...")
-                    db_findings = enhanced_checks.run_database_security_checks()
-                    all_findings.extend(db_findings)
+                    try:
+                        db_findings = enhanced_checks.run_database_security_checks()
+                        all_findings.extend(db_findings)
+                    except Exception as e:
+                        st.error(f"Database checks failed: {str(e)}")
                 
                 if run_container_checks:
                     st.info("Running container and serverless security checks...")
-                    container_findings = enhanced_checks.run_container_security_checks()
-                    all_findings.extend(container_findings)
+                    try:
+                        container_findings = enhanced_checks.run_container_security_checks()
+                        all_findings.extend(container_findings)
+                    except Exception as e:
+                        st.error(f"Container checks failed: {str(e)}")
                 
                 if run_advanced_iam:
                     st.info("Running advanced IAM analysis...")
-                    iam_findings = enhanced_checks.run_advanced_iam_checks()
-                    all_findings.extend(iam_findings)
+                    try:
+                        iam_findings = enhanced_checks.run_advanced_iam_checks()
+                        all_findings.extend(iam_findings)
+                    except Exception as e:
+                        st.error(f"IAM checks failed: {str(e)}")
                 
                 if run_network_deep_dive:
                     st.info("Running network security deep dive...")
-                    network_findings = enhanced_checks.run_network_security_deep_dive()
-                    all_findings.extend(network_findings)
+                    try:
+                        network_findings = enhanced_checks.run_network_security_deep_dive()
+                        all_findings.extend(network_findings)
+                    except Exception as e:
+                        st.error(f"Network checks failed: {str(e)}")
+            
+            
+            # Store findings in session state for export
+            st.session_state.enhanced_findings = all_findings
+            st.session_state.enhanced_checks_running = False
+            
+            st.success(f"Enhanced security checks completed! Found {len(all_findings)} findings.")
+            
+            # Display results
+            st.subheader("Security Assessment Results")
+            
+            if all_findings:
+                # Summary metrics
+                col1, col2, col3, col4 = st.columns(4)
                 
-                # Store findings in session state for export
-                st.session_state.enhanced_findings = all_findings
+                critical_count = len([f for f in all_findings if f.get('severity') == 'CRITICAL'])
+                high_count = len([f for f in all_findings if f.get('severity') == 'HIGH'])
+                medium_count = len([f for f in all_findings if f.get('severity') == 'MEDIUM'])
+                low_count = len([f for f in all_findings if f.get('severity') == 'LOW'])
                 
-                # Analyze findings for unknown or unclear issues
-                from compliance_analyzer import ComplianceAnalyzer
-                compliance_analyzer = ComplianceAnalyzer(security_monitors.ai_engine)
+                with col1:
+                    st.metric("Critical Issues", critical_count)
+                with col2:
+                    st.metric("High Severity", high_count)
+                with col3:
+                    st.metric("Medium Severity", medium_count)
+                with col4:
+                    st.metric("Low Severity", low_count)
                 
-                unknown_enhanced_issues = []
-                unclear_enhanced_issues = []
+                # Severity filter
+                severity_filter = st.selectbox(
+                    "Filter by severity:",
+                    ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                )
                 
-                for finding in all_findings:
-                    severity = finding.get('severity', '').upper()
-                    status = finding.get('status', '').upper()
-                    
-                    # Identify unknown or unclear findings
-                    if 'UNKNOWN' in status or severity == 'UNKNOWN' or not finding.get('description'):
-                        unknown_enhanced_issues.append({
-                            'rule_name': finding.get('title', 'Unknown Check'),
-                            'status': status,
-                            'resource_type': finding.get('resource_type', 'Unknown'),
-                            'description': finding.get('description', 'No description available'),
-                            'check_id': finding.get('check_id', 'Unknown'),
-                            'severity': severity
-                        })
-                    elif 'PARTIAL' in status or severity == 'INFO' or 'INSUFFICIENT' in status:
-                        unclear_enhanced_issues.append({
-                            'rule_name': finding.get('title', 'Unknown Check'),
-                            'status': status,
-                            'resource_type': finding.get('resource_type', 'Unknown'),
-                            'description': finding.get('description', 'No description available'),
-                            'check_id': finding.get('check_id', 'Unknown'),
-                            'severity': severity
-                        })
+                # Filter findings
+                filtered_findings = all_findings
+                if severity_filter != "All":
+                    filtered_findings = [f for f in all_findings if f.get('severity') == severity_filter]
                 
-                # Show AI-powered message box for unknown enhanced findings
-                if unknown_enhanced_issues or unclear_enhanced_issues:
-                    st.warning(f"Found {len(unknown_enhanced_issues)} unknown and {len(unclear_enhanced_issues)} unclear security findings requiring analysis")
-                    
-                    # Generate solutions for enhanced findings
-                    overview_data = security_monitors.get_security_overview()
-                    with st.spinner("Generating AI-powered solutions for unclear findings..."):
-                        enhanced_solutions = compliance_analyzer.generate_compliance_solutions(
-                            unknown_enhanced_issues,
-                            unclear_enhanced_issues,
-                            overview_data
-                        )
-                        
-                        if enhanced_solutions:
-                            st.subheader("AI-Powered Enhanced Security Analysis")
-                            compliance_analyzer.display_compliance_message_box(enhanced_solutions)
-                
-                # Display results
-                st.subheader("Security Assessment Results")
-                
-                if all_findings:
-                    # Summary metrics
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    critical_count = len([f for f in all_findings if f.get('severity') == 'CRITICAL'])
-                    high_count = len([f for f in all_findings if f.get('severity') == 'HIGH'])
-                    medium_count = len([f for f in all_findings if f.get('severity') == 'MEDIUM'])
-                    low_count = len([f for f in all_findings if f.get('severity') == 'LOW'])
-                    
-                    with col1:
-                        st.metric("Critical Issues", critical_count)
-                    with col2:
-                        st.metric("High Severity", high_count)
-                    with col3:
-                        st.metric("Medium Severity", medium_count)
-                    with col4:
-                        st.metric("Low Severity", low_count)
-                    
-                    # Severity filter
-                    severity_filter = st.selectbox(
-                        "Filter by severity:",
-                        ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
-                    )
-                    
-                    # Filter findings
-                    filtered_findings = all_findings
-                    if severity_filter != "All":
-                        filtered_findings = [f for f in all_findings if f.get('severity') == severity_filter]
-                    
-                    # Display findings
-                    for finding in filtered_findings:
-                        severity_color = {
-                            'CRITICAL': '🔴',
-                            'HIGH': '🟠',
-                            'MEDIUM': '🟡',
-                            'LOW': '🟢'
-                        }.get(finding.get('severity', 'LOW'), '⚪')
+                # Display findings
+                for finding in filtered_findings:
+                    severity_color = {
+                        'CRITICAL': '🔴',
+                        'HIGH': '🟠',
+                        'MEDIUM': '🟡',
+                        'LOW': '🟢'
+                    }.get(finding.get('severity', 'LOW'), '⚪')
                         
                         with st.expander(f"{severity_color} {finding.get('title', 'Security Finding')}", expanded=False):
                             col1, col2 = st.columns([2, 1])
