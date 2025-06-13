@@ -15,6 +15,7 @@ from enhanced_security_checks import EnhancedSecurityChecks
 from export_manager import ExportManager
 from trivy_integration import TrivyIntegratedScanner
 from security_heatmap import SecurityRiskHeatmap
+from world_traffic_map import show_world_traffic_map
 import json
 
 # Page configuration
@@ -397,6 +398,9 @@ def main():
         show_owasp_llm_tab(security_monitors, dashboard_components)
     
     with tab12:
+        show_world_traffic_map(st.session_state.aws_client)
+    
+    with tab13:
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
