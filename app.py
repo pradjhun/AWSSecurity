@@ -434,8 +434,8 @@ def main():
         "🤖 AI Recommendations",
         "🧠 OWASP LLM Top 10",
         "🌍 Global Traffic Map",
-        "🗄️ Cache Management",
-        "📤 Export Reports"
+        "📤 Export Reports",
+        "⚙️ Admin"
     ])
     
     with tab1:
@@ -475,13 +475,10 @@ def main():
         show_world_traffic_map(st.session_state.aws_client)
     
     with tab13:
-        if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
-            show_cache_management_interface(st.session_state.cached_client)
-        else:
-            st.info("Cache management is available after connecting to AWS")
+        show_export_reports_tab(security_monitors, dashboard_components)
     
     with tab14:
-        show_export_reports_tab(security_monitors, dashboard_components)
+        show_admin_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
     col1, col2 = st.columns([3, 1])
@@ -3167,6 +3164,173 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
     except Exception as e:
         st.error(f"Error loading risk heatmap: {str(e)}")
         st.info("Please ensure AWS connection is established and try again")
+
+def show_admin_tab(security_monitors, dashboard_components):
+    """Admin page with configuration and cache management"""
+    st.header("⚙️ Administration")
+    
+    # Create subtabs for different admin functions
+    admin_tab1, admin_tab2, admin_tab3 = st.tabs([
+        "🗄️ Cache Management", 
+        "🔧 Configuration", 
+        "📊 System Status"
+    ])
+    
+    with admin_tab1:
+        st.subheader("Cache Management")
+        
+        if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+            show_cache_management_interface(st.session_state.cached_client)
+        else:
+            st.info("Cache management is available after connecting to AWS")
+            
+    with admin_tab2:
+        st.subheader("System Configuration")
+        
+        # AWS Region Configuration
+        st.markdown("#### AWS Region Selection")
+        if hasattr(st.session_state, 'aws_client') and st.session_state.aws_client:
+            current_regions = st.session_state.aws_client.selected_regions
+            st.write(f"Currently monitoring {len(current_regions)} regions:")
+            st.write(", ".join(current_regions))
+            
+            # Allow region reconfiguration
+            if st.button("Reconfigure Regions", key="reconfig_regions"):
+                if 'aws_configured' in st.session_state:
+                    del st.session_state.aws_configured
+                st.rerun()
+        else:
+            st.info("AWS connection required for region configuration")
+        
+        st.divider()
+        
+        # Performance Settings
+        st.markdown("#### Performance Settings")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            cache_ttl = st.number_input(
+                "Cache TTL (minutes)", 
+                min_value=1, 
+                max_value=60, 
+                value=5,
+                help="Time-to-live for cached data"
+            )
+        
+        with col2:
+            auto_refresh = st.checkbox(
+                "Auto-refresh data", 
+                value=True,
+                help="Automatically refresh dashboard data"
+            )
+        
+        # Save settings
+        if st.button("Save Configuration", key="save_config"):
+            st.session_state.cache_ttl = cache_ttl
+            st.session_state.auto_refresh = auto_refresh
+            st.success("Configuration saved successfully")
+        
+        st.divider()
+        
+        # Debug Options
+        st.markdown("#### Debug Options")
+        
+        debug_mode = st.checkbox(
+            "Enable debug mode", 
+            value=st.session_state.get('debug_mode', False),
+            help="Show detailed error messages and debug information"
+        )
+        
+        if debug_mode != st.session_state.get('debug_mode', False):
+            st.session_state.debug_mode = debug_mode
+            if debug_mode:
+                st.info("Debug mode enabled - detailed logs will be shown")
+            else:
+                st.info("Debug mode disabled")
+        
+        # Clear all session data
+        if st.button("🗑️ Clear Session Data", key="clear_session", type="secondary"):
+            for key in list(st.session_state.keys()):
+                if key not in ['aws_client', 'cached_client']:  # Keep connection
+                    del st.session_state[key]
+            st.success("Session data cleared")
+            st.rerun()
+    
+    with admin_tab3:
+        st.subheader("System Status")
+        
+        # Connection Status
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Connection Status")
+            if hasattr(st.session_state, 'aws_client') and st.session_state.aws_client:
+                st.success("✅ AWS Connected")
+                try:
+                    account_id = st.session_state.aws_client.get_account_id()
+                    st.write(f"Account ID: {account_id}")
+                except:
+                    st.warning("⚠️ AWS Connection Issues")
+            else:
+                st.error("❌ AWS Not Connected")
+        
+        with col2:
+            st.markdown("#### Cache Status")
+            if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+                cache_info = st.session_state.cached_client.get_cache_info()
+                st.success("✅ Cache Active")
+                st.write(f"Entries: {cache_info.get('total_entries', 0)}")
+                st.write(f"Hit Rate: {cache_info.get('hit_rate', 0):.1%}")
+            else:
+                st.warning("⚠️ Cache Not Available")
+        
+        st.divider()
+        
+        # System Metrics
+        st.markdown("#### System Metrics")
+        
+        if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+            perf_stats = st.session_state.cached_client.get_cache_stats()
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Cache Hits", perf_stats.get('total_hits', 0))
+            with col2:
+                st.metric("Cache Misses", perf_stats.get('total_misses', 0))
+            with col3:
+                avg_time = perf_stats.get('avg_execution_time', 0)
+                st.metric("Avg Response Time", f"{avg_time:.2f}s")
+            with col4:
+                st.metric("Active Operations", perf_stats.get('total_operations', 0))
+        else:
+            st.info("Performance metrics available after AWS connection")
+        
+        st.divider()
+        
+        # Maintenance Actions
+        st.markdown("#### Maintenance")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 Force Refresh", key="force_refresh"):
+                if hasattr(st.session_state, 'cached_client'):
+                    st.session_state.cached_client.invalidate_cache()
+                st.success("Data refreshed")
+                st.rerun()
+        
+        with col2:
+            if st.button("🧹 Cleanup Cache", key="cleanup_cache"):
+                if hasattr(st.session_state, 'cached_client'):
+                    cleaned = st.session_state.cached_client.cleanup_cache()
+                    st.success(f"Cleaned {cleaned} expired entries")
+                else:
+                    st.info("No cache to clean")
+        
+        with col3:
+            if st.button("📊 Export Logs", key="export_logs"):
+                st.info("Log export functionality coming soon")
 
 if __name__ == "__main__":
     main()
