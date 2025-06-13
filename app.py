@@ -841,17 +841,30 @@ def show_overview_tab(security_monitors, dashboard_components):
                 if guardduty_findings:
                     st.markdown(f"**Total GuardDuty Findings:** {len(guardduty_findings)}")
                     
-                    # Create DataFrame for better display
+                    # Debug: Show actual data structure
+                    if st.checkbox("Show debug info", key="debug_guardduty"):
+                        st.json(guardduty_findings[0] if guardduty_findings else {})
+                    
+                    # Create DataFrame for better display - handle both AWS API format and internal format
                     findings_display = []
                     for finding in guardduty_findings:
+                        # Try AWS API format first (Title, Type, etc.), then internal format (title, type, etc.)
+                        title = finding.get('Title') or finding.get('title', 'Unknown Finding')
+                        finding_type = finding.get('Type') or finding.get('type', 'Unknown')
+                        severity = finding.get('Severity') or finding.get('severity', 0)
+                        service = finding.get('Service', {}).get('ServiceName') if finding.get('Service') else finding.get('service', 'GuardDuty')
+                        region = finding.get('Region') or finding.get('region', 'Unknown')
+                        resource = finding.get('Resource', {}).get('ResourceType') if finding.get('Resource') else finding.get('resource_type') or finding.get('resource', 'Unknown')
+                        updated = finding.get('UpdatedAt') or finding.get('updated_at', 'Unknown')
+                        
                         findings_display.append({
-                            'Title': finding.get('title', 'Unknown Finding'),
-                            'Type': finding.get('type', 'Unknown'),
-                            'Severity': finding.get('severity', 0),
-                            'Service': finding.get('service', 'Unknown'),
-                            'Region': finding.get('region', 'Unknown'),
-                            'Resource': finding.get('resource_type', 'Unknown'),
-                            'Updated': finding.get('updated_at', 'Unknown')
+                            'Title': title,
+                            'Type': finding_type,
+                            'Severity': severity,
+                            'Service': service,
+                            'Region': region,
+                            'Resource': resource,
+                            'Updated': updated
                         })
                     
                     if findings_display:
