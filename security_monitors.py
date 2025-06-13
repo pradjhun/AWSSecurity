@@ -55,7 +55,7 @@ class SecurityMonitors:
             guardduty_detectors = len(detectors)
             if detectors:
                 findings = self.aws_client.list_guardduty_findings(detectors[0])
-                critical_alerts = len([f for f in findings if f.get('Severity', 0) >= 8.0])
+                critical_alerts = len([f for f in findings if self._safe_severity_compare(f.get('Severity', 0), 8.0)])
             
             # Get recent CloudTrail events
             end_time = datetime.utcnow()
@@ -788,6 +788,14 @@ class SecurityMonitors:
             'counts': [item[1] for item in sorted_timeline]
         }
     
+    def _safe_severity_compare(self, severity, threshold):
+        """Safely compare severity values, handling string/float conversion"""
+        try:
+            severity_float = float(severity) if severity else 0.0
+        except (ValueError, TypeError):
+            severity_float = 0.0
+        return severity_float >= threshold
+
     def _get_severity_label(self, severity):
         """Convert numeric severity to label"""
         try:
