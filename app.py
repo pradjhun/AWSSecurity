@@ -16,6 +16,7 @@ from export_manager import ExportManager
 from trivy_integration import TrivyIntegratedScanner
 from security_heatmap import SecurityRiskHeatmap
 from world_traffic_map import show_world_traffic_map
+from cache_database import SecurityDataCache, CachedAWSClient, show_cache_management_interface
 import json
 
 # Page configuration
@@ -29,6 +30,10 @@ st.set_page_config(
 # Initialize session state
 if 'aws_client' not in st.session_state:
     st.session_state.aws_client = None
+if 'cached_client' not in st.session_state:
+    st.session_state.cached_client = None
+if 'cache_db' not in st.session_state:
+    st.session_state.cache_db = SecurityDataCache()
 if 'connected' not in st.session_state:
     st.session_state.connected = False
 
@@ -304,22 +309,28 @@ def main():
         if st.button("Connect to AWS", type="primary"):
             if aws_access_key and aws_secret_key:
                 try:
-                    st.session_state.aws_client = AWSClient(
-                        aws_access_key_id=aws_access_key,
-                        aws_secret_access_key=aws_secret_key,
-                        region_name=primary_region,
-                        selected_regions=selected_regions
-                    )
-                    st.session_state.selected_regions = selected_regions
-                    st.session_state.primary_region = primary_region
-                    
-                    if st.session_state.aws_client.test_connection():
-                        st.session_state.connected = True
-                        st.success("Successfully connected to AWS!")
-                        st.rerun()
-                    else:
-                        st.error("Failed to connect to AWS. Please check your credentials.")
-                        st.session_state.connected = False
+                    with st.spinner("Connecting to AWS and initializing performance cache..."):
+                        # Create base AWS client
+                        base_client = AWSClient(
+                            aws_access_key_id=aws_access_key,
+                            aws_secret_access_key=aws_secret_key,
+                            region_name=primary_region,
+                            selected_regions=selected_regions
+                        )
+                        
+                        if base_client.test_connection():
+                            # Store both clients in session state
+                            st.session_state.aws_client = base_client
+                            st.session_state.cached_client = CachedAWSClient(base_client, st.session_state.cache_db)
+                            st.session_state.selected_regions = selected_regions
+                            st.session_state.primary_region = primary_region
+                            st.session_state.connected = True
+                            
+                            st.success("Successfully connected to AWS with caching enabled!")
+                            st.rerun()
+                        else:
+                            st.error("Failed to connect to AWS. Please check your credentials.")
+                            st.session_state.connected = False
                 except Exception as e:
                     st.error(f"Error connecting to AWS: {str(e)}")
                     st.session_state.connected = False
@@ -348,7 +359,7 @@ def main():
     security_heatmap = SecurityRiskHeatmap(st.session_state.aws_client)
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs([
         "🏠 Overview",
         "🔥 Risk Heatmap",
         "👤 IAM Security", 
@@ -361,6 +372,7 @@ def main():
         "🤖 AI Recommendations",
         "🧠 OWASP LLM Top 10",
         "🌍 Global Traffic Map",
+        "🗄️ Cache Management",
         "📤 Export Reports"
     ])
     
@@ -401,6 +413,12 @@ def main():
         show_world_traffic_map(st.session_state.aws_client)
     
     with tab13:
+        if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+            show_cache_management_interface(st.session_state.cached_client)
+        else:
+            st.info("Cache management is available after connecting to AWS")
+    
+    with tab14:
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
