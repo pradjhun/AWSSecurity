@@ -585,9 +585,15 @@ class SecurityMonitors:
             for finding in findings:
                 severity = finding.get('Severity', 0)
                 
-                if severity >= 8.0:
+                # Convert severity to float if it's a string
+                try:
+                    severity_float = float(severity) if severity else 0.0
+                except (ValueError, TypeError):
+                    severity_float = 0.0
+                
+                if severity_float >= 8.0:
                     critical_findings += 1
-                elif severity >= 6.0:
+                elif severity_float >= 6.0:
                     high_findings += 1
                 
                 # Count active threats (findings from last 24 hours)
@@ -627,7 +633,7 @@ class SecurityMonitors:
                 recent_findings.append({
                     'Title': finding.get('Title', 'N/A'),
                     'Type': finding.get('Type', 'N/A'),
-                    'Severity': self._get_severity_label(severity),
+                    'Severity': self._get_severity_label(severity_float),
                     'Resource': finding.get('Resource', {}).get('Type', 'N/A'),
                     'Region': finding.get('Region', 'N/A'),
                     'Updated': formatted_date
@@ -784,11 +790,16 @@ class SecurityMonitors:
     
     def _get_severity_label(self, severity):
         """Convert numeric severity to label"""
-        if severity >= 8.0:
+        try:
+            severity_float = float(severity) if severity else 0.0
+        except (ValueError, TypeError):
+            severity_float = 0.0
+            
+        if severity_float >= 8.0:
             return 'CRITICAL'
-        elif severity >= 6.0:
+        elif severity_float >= 6.0:
             return 'HIGH'
-        elif severity >= 4.0:
+        elif severity_float >= 4.0:
             return 'MEDIUM'
         else:
             return 'LOW'
