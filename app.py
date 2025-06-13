@@ -1569,71 +1569,9 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
     st.header("🔍 Enhanced Security Checks")
     st.markdown("Comprehensive security assessments based on industry best practices")
     
-    st.warning("⚠️ Enhanced Security Checks are temporarily disabled to prevent infinite loop execution.")
-    st.info("This feature will be re-enabled in a future update with proper execution controls.")
-    
-    # Show previous findings if available
-    if 'enhanced_findings' in st.session_state and st.session_state.enhanced_findings:
-        st.subheader("Previous Enhanced Security Findings")
-        st.json(st.session_state.enhanced_findings[:5])  # Show first 5 findings
-        
-        # Export options for previous findings
-        st.subheader("📄 Export Previous Findings")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("Generate PDF Report", type="primary", key="prev_enhanced_pdf_export"):
-                try:
-                    from export_manager import ExportManager
-                    export_manager = ExportManager()
-                    overview_data = security_monitors.get_security_overview()
-                    compliance_data = security_monitors.get_compliance_data()
-                    
-                    pdf_data = export_manager.export_compliance_report_to_pdf(
-                        overview_data,
-                        compliance_data,
-                        overview_data.get('recommendations', []),
-                        st.session_state.enhanced_findings
-                    )
-                    
-                    filename = export_manager.get_pdf_filename("enhanced_security_assessment")
-                    
-                    st.download_button(
-                        label="Download Enhanced Security Report",
-                        data=pdf_data,
-                        file_name=filename,
-                        mime="application/pdf",
-                        key="download_prev_enhanced_pdf"
-                    )
-                    st.success("Enhanced security report generated successfully!")
-                except Exception as e:
-                    st.error(f"Error generating PDF report: {str(e)}")
-        
-        with col2:
-            if st.button("Export as JSON", key="prev_enhanced_json_export"):
-                try:
-                    from export_manager import ExportManager
-                    export_manager = ExportManager()
-                    json_data = export_manager.export_findings_to_json(st.session_state.enhanced_findings)
-                    filename = export_manager.get_export_filename('json', 'enhanced_findings')
-                    
-                    st.download_button(
-                        label="Download JSON Findings",
-                        data=json_data,
-                        file_name=filename,
-                        mime="application/json",
-                        key="download_prev_enhanced_json"
-                    )
-                except Exception as e:
-                    st.error(f"Error exporting JSON: {str(e)}")
-    else:
-        st.info("No previous enhanced security findings available.")
-    
-    return
-    
-    # DISABLED CODE BELOW - NOT EXECUTED
     try:
         # Initialize enhanced security checks
+        from enhanced_security_checks import EnhancedSecurityChecks
         enhanced_checks = EnhancedSecurityChecks(st.session_state.aws_client)
         
         # Check selection
@@ -1642,18 +1580,15 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
         col1, col2 = st.columns(2)
         
         with col1:
-            run_database_checks = st.checkbox("Database Security Assessment", value=False)
-            run_container_checks = st.checkbox("Container & Serverless Security", value=False)
+            run_database_checks = st.checkbox("Database Security Assessment", value=False, key="db_checks")
+            run_container_checks = st.checkbox("Container & Serverless Security", value=False, key="container_checks")
         
         with col2:
-            run_advanced_iam = st.checkbox("Advanced IAM Analysis", value=False)
-            run_network_deep_dive = st.checkbox("Network Security Deep Dive", value=False)
+            run_advanced_iam = st.checkbox("Advanced IAM Analysis", value=False, key="iam_checks")
+            run_network_deep_dive = st.checkbox("Network Security Deep Dive", value=False, key="network_checks")
         
-        # Add session state management to prevent automatic execution
-        if 'enhanced_checks_running' not in st.session_state:
-            st.session_state.enhanced_checks_running = False
-        
-        if st.button("Run Enhanced Security Checks", type="primary"):
+        # Manual execution only - no automatic triggers
+        if st.button("Run Enhanced Security Checks", type="primary", key="run_enhanced_checks"):
             with st.spinner("Running comprehensive security assessments..."):
                 all_findings = []
                 
@@ -1695,9 +1630,9 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
             st.success(f"Enhanced security checks completed! Found {len(all_findings)} findings.")
             
             # Display results
-            st.subheader("Security Assessment Results")
-            
             if all_findings:
+                st.subheader("Security Assessment Results")
+                
                 # Summary metrics
                 col1, col2, col3, col4 = st.columns(4)
                 
@@ -1718,7 +1653,8 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                 # Severity filter
                 severity_filter = st.selectbox(
                     "Filter by severity:",
-                    ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"]
+                    ["All", "CRITICAL", "HIGH", "MEDIUM", "LOW"],
+                    key="severity_filter"
                 )
                 
                 # Filter findings
@@ -1751,56 +1687,60 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
             else:
                 st.success("No security issues found in the selected assessments!")
         
-        # PDF Export option (always show if previous findings exist)
+        # Export options for previous findings
         if 'enhanced_findings' in st.session_state and st.session_state.enhanced_findings:
-            st.subheader("📄 Export Enhanced Findings")
+            st.subheader("📄 Export Findings")
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("Generate PDF Report with Findings", type="primary", key="enhanced_pdf_export"):
+                if st.button("Generate PDF Report", type="primary", key="enhanced_pdf_export"):
                     try:
-                        with st.spinner("Generating PDF report with enhanced findings..."):
-                            export_manager = ExportManager()
-                            overview_data = security_monitors.get_security_overview()
-                            compliance_data = security_monitors.get_compliance_data()
-                            
-                            pdf_data = export_manager.export_compliance_report_to_pdf(
-                                overview_data,
-                                compliance_data,
-                                overview_data.get('recommendations', []),
-                                st.session_state.enhanced_findings
-                            )
-                            
-                            filename = export_manager.get_pdf_filename("enhanced_security_assessment")
-                            
-                            st.download_button(
-                                label="Download Enhanced Security Report",
-                                data=pdf_data,
-                                file_name=filename,
-                                mime="application/pdf",
-                                key="download_enhanced_pdf"
-                            )
-                            st.success("Enhanced security report generated successfully!")
+                        from export_manager import ExportManager
+                        export_manager = ExportManager()
+                        overview_data = security_monitors.get_security_overview()
+                        compliance_data = security_monitors.get_compliance_data()
+                        
+                        pdf_data = export_manager.export_compliance_report_to_pdf(
+                            overview_data,
+                            compliance_data,
+                            overview_data.get('recommendations', []),
+                            st.session_state.enhanced_findings
+                        )
+                        
+                        filename = export_manager.get_pdf_filename("enhanced_security_assessment")
+                        
+                        st.download_button(
+                            label="Download Enhanced Security Report",
+                            data=pdf_data,
+                            file_name=filename,
+                            mime="application/pdf",
+                            key="download_enhanced_pdf"
+                        )
+                        st.success("Enhanced security report generated successfully!")
                     except Exception as e:
-                        st.error(f"Error generating enhanced PDF report: {str(e)}")
+                        st.error(f"Error generating PDF report: {str(e)}")
             
             with col2:
-                # JSON export for enhanced findings
-                if st.button("Export Findings as JSON", key="enhanced_json_export"):
-                    export_manager = ExportManager()
-                    json_data = export_manager.export_findings_to_json(st.session_state.enhanced_findings)
-                    filename = export_manager.get_export_filename('json', 'enhanced_findings')
-                    
-                    st.download_button(
-                        label="Download JSON Findings",
-                        data=json_data,
-                        file_name=filename,
-                        mime="application/json",
-                        key="download_enhanced_json"
-                    )
-                    
+                if st.button("Export as JSON", key="enhanced_json_export"):
+                    try:
+                        from export_manager import ExportManager
+                        export_manager = ExportManager()
+                        json_data = export_manager.export_findings_to_json(st.session_state.enhanced_findings)
+                        filename = export_manager.get_export_filename('json', 'enhanced_findings')
+                        
+                        st.download_button(
+                            label="Download JSON Findings",
+                            data=json_data,
+                            file_name=filename,
+                            mime="application/json",
+                            key="download_enhanced_json"
+                        )
+                    except Exception as e:
+                        st.error(f"Error exporting JSON: {str(e)}")
+    
     except Exception as e:
-        st.error(f"Error running enhanced security checks: {str(e)}")
+        st.error(f"Error initializing enhanced security checks: {str(e)}")
+        st.info("Please ensure AWS credentials are properly configured.")
 
 def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
     st.header("🔐 Trivy-Inspired Vulnerability Scanner")
