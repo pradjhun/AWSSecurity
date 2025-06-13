@@ -1,0 +1,77 @@
+Top 10 IAM Security Best Practices
+
+Based on my general knowledge of AWS IAM security principles, here are the essential practices every organization should implement:
+
+
+1. Enable Multi-Factor Authentication (MFA)
+
+Require MFA for all users, especially those with administrative privileges. This adds a critical second layer of security even if passwords are compromised.
+
+
+2. Follow the Principle of Least Privilege
+
+Grant users and services only the minimum permissions necessary to perform their job functions. Start with minimal access and add permissions as needed.
+
+
+3. Use IAM Roles Instead of Long-Term Access Keys
+
+* For EC2 instances, Lambda functions, and other AWS services
+* For cross-account access
+* For temporary access scenarios
+* Avoid embedding access keys in code or configuration files
+
+4. Implement Strong Password Policies
+
+Configure password requirements including:
+
+* Minimum length (12+ characters recommended)
+* Complexity requirements
+* Password rotation periods
+* Prevention of password reuse
+
+5. Regularly Rotate Access Keys and Credentials
+
+* Establish automated rotation schedules
+* Remove unused or old access keys
+* Use AWS Secrets Manager for application credentials
+* Monitor key age and usage patterns
+
+6. Enable AWS CloudTrail for Audit Logging
+
+Track all IAM actions and API calls to:
+
+* Monitor suspicious activities
+* Maintain compliance audit trails
+* Investigate security incidents
+* Detect unauthorized access attempts
+
+7. Use IAM Groups and Policies Effectively
+
+* Organize users into logical groups based on job functions
+* Attach policies to groups rather than individual users
+* Use AWS managed policies when appropriate
+* Create custom policies only when necessary
+
+8. Regularly Review and Clean Up Permissions
+
+* Conduct periodic access reviews
+* Remove unused users, groups, and roles
+* Identify and eliminate excessive permissions
+* Use AWS Access Analyzer to identify unused access
+
+9. Secure the Root Account
+
+* Enable MFA on the root account
+* Don't use root account for daily operations
+* Store root account credentials securely
+* Monitor root account usage closely
+
+10. Implement Conditional Access Controls
+
+Use IAM policy conditions to restrict access based on:
+
+* Source IP addresses or IP ranges
+* Time of day restrictions
+* Required MFA authentication
+* Specific AWS services or resources
+

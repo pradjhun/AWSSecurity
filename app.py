@@ -1021,6 +1021,66 @@ def show_iam_security_tab(security_monitors, dashboard_components):
             else:
                 st.info("Policy changes data not available")
         
+        # IAM Security Best Practices Assessment
+        st.subheader("🔐 IAM Security Best Practices Assessment")
+        
+        # Get security assessment data
+        security_assessment = security_monitors.get_iam_security_assessment()
+        
+        # Create two columns for the assessment
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Security Policies Assessment**")
+            
+            for i, policy in enumerate(security_assessment['policies'][:5], 1):
+                status_icon = "✅" if policy['implemented'] else "❌"
+                status_color = "success" if policy['implemented'] else "error"
+                
+                with st.container():
+                    st.markdown(f"**{i}. {policy['name']}**")
+                    if policy['implemented']:
+                        st.success(f"{status_icon} Implemented - {policy['details']}")
+                    else:
+                        st.error(f"{status_icon} Not Implemented - {policy['recommendation']}")
+                    st.markdown("---")
+        
+        with col2:
+            st.markdown("**Additional Security Policies**")
+            
+            for i, policy in enumerate(security_assessment['policies'][5:], 6):
+                status_icon = "✅" if policy['implemented'] else "❌"
+                
+                with st.container():
+                    st.markdown(f"**{i}. {policy['name']}**")
+                    if policy['implemented']:
+                        st.success(f"{status_icon} Implemented - {policy['details']}")
+                    else:
+                        st.error(f"{status_icon} Not Implemented - {policy['recommendation']}")
+                    st.markdown("---")
+        
+        # Security Score Summary
+        st.subheader("📊 IAM Security Score")
+        implemented_count = sum(1 for policy in security_assessment['policies'] if policy['implemented'])
+        total_policies = len(security_assessment['policies'])
+        security_percentage = (implemented_count / total_policies) * 100
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Policies Implemented", f"{implemented_count}/{total_policies}")
+        
+        with col2:
+            st.metric("Security Score", f"{security_percentage:.0f}%")
+        
+        with col3:
+            if security_percentage >= 80:
+                st.success("Excellent Security Posture")
+            elif security_percentage >= 60:
+                st.warning("Good - Room for Improvement")
+            else:
+                st.error("Needs Immediate Attention")
+
         # User details table
         st.subheader("IAM User Details")
         if iam_data.get('user_details'):

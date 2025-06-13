@@ -83,6 +83,10 @@ class CachedSecurityMonitors(SecurityMonitors):
         """Cached data protection data"""
         return self._cached_operation('data_protection', super().get_data_protection_data)
     
+    def get_iam_security_assessment(self):
+        """Cached IAM security assessment"""
+        return self._cached_operation('iam_security_assessment', super().get_iam_security_assessment)
+    
     def invalidate_cache(self, operation: str = None):
         """Invalidate cache for specific operation or all"""
         region = getattr(self.aws_client, 'region_name', 'default')

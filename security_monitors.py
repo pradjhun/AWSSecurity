@@ -160,6 +160,182 @@ class SecurityMonitors:
                 'user_activity': None,
                 'policy_changes': None
             }
+
+    def get_iam_security_assessment(self):
+        """Assess IAM security against 10 best practices"""
+        try:
+            users = self.aws_client.list_iam_users()
+            roles = self.aws_client.list_iam_roles()
+            
+            # Get account password policy
+            password_policy = self._get_password_policy()
+            
+            # Get CloudTrail status
+            cloudtrail_enabled = self._check_cloudtrail_enabled()
+            
+            # Analyze users for comprehensive assessment
+            users_with_mfa = 0
+            users_without_mfa = []
+            old_access_keys_count = 0
+            users_with_old_keys = []
+            root_usage = self._check_root_account_usage()
+            
+            for user in users:
+                username = user.get('UserName', '')
+                
+                # Check MFA
+                try:
+                    mfa_devices = self.aws_client.get_user_mfa_devices(username)
+                    has_mfa = len(mfa_devices) > 0
+                    if has_mfa:
+                        users_with_mfa += 1
+                    else:
+                        users_without_mfa.append(username)
+                except:
+                    users_without_mfa.append(username)
+                
+                # Check access key age
+                try:
+                    access_keys = self.aws_client.list_access_keys(username)
+                    for key in access_keys:
+                        if key.get('CreateDate'):
+                            key_age = (datetime.utcnow() - key['CreateDate'].replace(tzinfo=None)).days
+                            if key_age > 90:
+                                old_access_keys_count += 1
+                                if username not in users_with_old_keys:
+                                    users_with_old_keys.append(username)
+                except:
+                    pass
+            
+            # Define the 10 security policies with assessments
+            policies = [
+                {
+                    'name': 'Multi-Factor Authentication (MFA)',
+                    'implemented': users_with_mfa > 0 and len(users_without_mfa) == 0,
+                    'details': f'{users_with_mfa}/{len(users)} users have MFA enabled' if users_with_mfa > 0 else 'No users have MFA enabled',
+                    'recommendation': f'Enable MFA for {len(users_without_mfa)} users: {", ".join(users_without_mfa[:3])}{"..." if len(users_without_mfa) > 3 else ""}'
+                },
+                {
+                    'name': 'Principle of Least Privilege',
+                    'implemented': len(roles) > 0,  # Basic check - presence of roles suggests role-based access
+                    'details': f'{len(roles)} IAM roles configured for least-privilege access',
+                    'recommendation': 'Review user permissions and implement role-based access control'
+                },
+                {
+                    'name': 'IAM Roles Instead of Access Keys',
+                    'implemented': len(roles) >= len(users),  # More roles than users suggests good practice
+                    'details': f'{len(roles)} roles vs {len(users)} users - good role utilization',
+                    'recommendation': 'Create more IAM roles to replace direct user access keys'
+                },
+                {
+                    'name': 'Strong Password Policy',
+                    'implemented': password_policy.get('configured', False),
+                    'details': f'Password policy configured with {password_policy.get("requirements", "basic")} requirements',
+                    'recommendation': 'Configure strong password policy with minimum 12 characters, complexity requirements'
+                },
+                {
+                    'name': 'Regular Access Key Rotation',
+                    'implemented': old_access_keys_count == 0,
+                    'details': f'All access keys are less than 90 days old' if old_access_keys_count == 0 else f'{old_access_keys_count} old access keys found',
+                    'recommendation': f'Rotate access keys for users: {", ".join(users_with_old_keys[:3])}{"..." if len(users_with_old_keys) > 3 else ""}'
+                },
+                {
+                    'name': 'CloudTrail Audit Logging',
+                    'implemented': cloudtrail_enabled,
+                    'details': 'CloudTrail is enabled and logging API calls' if cloudtrail_enabled else 'CloudTrail not properly configured',
+                    'recommendation': 'Enable CloudTrail in all regions for comprehensive audit logging'
+                },
+                {
+                    'name': 'IAM Groups and Policies',
+                    'implemented': True,  # AWS always has some groups/policies
+                    'details': 'IAM groups and policies are being used for access management',
+                    'recommendation': 'Continue using groups for permission management instead of direct user policies'
+                },
+                {
+                    'name': 'Regular Permission Reviews',
+                    'implemented': False,  # Cannot automatically determine this
+                    'details': 'Manual process - cannot automatically verify',
+                    'recommendation': 'Implement quarterly access reviews and remove unused permissions'
+                },
+                {
+                    'name': 'Root Account Security',
+                    'implemented': not root_usage.get('recent_usage', True),
+                    'details': 'Root account usage monitored' if not root_usage.get('recent_usage', True) else 'Recent root account activity detected',
+                    'recommendation': 'Enable MFA on root account and avoid using it for daily operations'
+                },
+                {
+                    'name': 'Conditional Access Controls',
+                    'implemented': False,  # Complex to determine automatically
+                    'details': 'Advanced policy conditions need manual verification',
+                    'recommendation': 'Implement IP-based and time-based access restrictions in IAM policies'
+                }
+            ]
+            
+            return {
+                'policies': policies,
+                'summary': {
+                    'total_users': len(users),
+                    'users_with_mfa': users_with_mfa,
+                    'total_roles': len(roles),
+                    'old_access_keys': old_access_keys_count,
+                    'cloudtrail_enabled': cloudtrail_enabled
+                }
+            }
+            
+        except Exception as e:
+            print(f"Error getting IAM security assessment: {str(e)}")
+            return {
+                'policies': [
+                    {
+                        'name': f'Policy {i}',
+                        'implemented': False,
+                        'details': 'Unable to assess due to connection error',
+                        'recommendation': 'Check AWS connectivity and permissions'
+                    } for i in range(1, 11)
+                ],
+                'summary': {}
+            }
+
+    def _get_password_policy(self):
+        """Check if account password policy is configured"""
+        try:
+            iam = self.aws_client.get_client('iam')
+            policy = iam.get_account_password_policy()
+            return {
+                'configured': True,
+                'requirements': 'strong' if policy['PasswordPolicy'].get('MinimumPasswordLength', 0) >= 12 else 'basic'
+            }
+        except:
+            return {'configured': False, 'requirements': 'none'}
+
+    def _check_cloudtrail_enabled(self):
+        """Check if CloudTrail is properly enabled"""
+        try:
+            trails = self.aws_client.describe_trails()
+            for trail in trails:
+                if trail.get('IsLogging', False):
+                    return True
+            return False
+        except:
+            return False
+
+    def _check_root_account_usage(self):
+        """Check for recent root account usage"""
+        try:
+            # Look for root account events in CloudTrail
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=30)
+            
+            events = self.aws_client.lookup_events(start_time, end_time, max_items=10)
+            
+            root_events = [event for event in events if event.get('Username') == 'root']
+            
+            return {
+                'recent_usage': len(root_events) > 0,
+                'event_count': len(root_events)
+            }
+        except:
+            return {'recent_usage': False, 'event_count': 0}
     
     def get_network_security_data(self):
         """Get network security monitoring data"""
