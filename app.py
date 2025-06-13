@@ -341,7 +341,64 @@ def main():
         # Connection status
         if st.session_state.connected:
             st.success("✅ Connected to AWS")
-            if st.button("Disconnect"):
+            
+            # Cache performance indicator
+            if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+                try:
+                    cache_stats = st.session_state.cached_client.get_cache_stats()
+                    if cache_stats['total_operations'] > 0:
+                        hit_rate = cache_stats['cache_hit_rate']
+                        if hit_rate > 70:
+                            st.success(f"Cache Performance: {hit_rate:.0f}% hit rate")
+                        elif hit_rate > 40:
+                            st.info(f"Cache Performance: {hit_rate:.0f}% hit rate")
+                        else:
+                            st.warning(f"Cache Performance: {hit_rate:.0f}% hit rate")
+                    else:
+                        st.info("Cache: Initializing...")
+                except:
+                    st.info("Cache: Active")
+            
+            # One-click cache clearing
+            st.markdown("---")
+            st.subheader("Performance Controls")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("🔄 Clear All Cache", use_container_width=True, type="primary"):
+                    if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+                        cleared = st.session_state.cached_client.invalidate_cache()
+                        st.success(f"Cleared {cleared} entries")
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.warning("Cache not available")
+            
+            with col2:
+                if st.button("🧹 Clean Expired", use_container_width=True):
+                    if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+                        cleaned = st.session_state.cached_client.cleanup_cache()
+                        if cleaned > 0:
+                            st.success(f"Cleaned {cleaned} expired entries")
+                        else:
+                            st.info("No expired entries found")
+                    else:
+                        st.warning("Cache not available")
+            
+            # Cache statistics summary
+            if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
+                try:
+                    cache_info = st.session_state.cached_client.get_cache_info()
+                    if cache_info['total_entries'] > 0:
+                        st.info(f"Active cache entries: {cache_info['total_entries']}")
+                        if cache_info.get('total_size_mb'):
+                            st.info(f"Cache size: {cache_info['total_size_mb']:.1f} MB")
+                except:
+                    pass
+            
+            st.markdown("---")
+            if st.button("Disconnect", use_container_width=True):
                 st.session_state.aws_client = None
                 st.session_state.connected = False
                 st.rerun()
@@ -427,7 +484,19 @@ def main():
         show_export_reports_tab(security_monitors, dashboard_components)
 
 def show_overview_tab(security_monitors, dashboard_components):
-    st.header("Security Overview")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.header("Security Overview")
+    
+    with col2:
+        if st.button("⚡ Refresh Data", key="overview_refresh"):
+            if hasattr(security_monitors, 'invalidate_cache'):
+                security_monitors.invalidate_cache('security_overview')
+                st.success("Overview data refreshed")
+                st.rerun()
+            else:
+                st.rerun()
     
     try:
         # Get overview data
@@ -901,7 +970,19 @@ def show_overview_tab(security_monitors, dashboard_components):
         st.error(f"Error loading overview data: {str(e)}")
 
 def show_iam_security_tab(security_monitors, dashboard_components):
-    st.header("IAM Security Monitoring")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.header("IAM Security Monitoring")
+    
+    with col2:
+        if st.button("⚡ Refresh IAM", key="iam_refresh"):
+            if hasattr(security_monitors, 'invalidate_cache'):
+                security_monitors.invalidate_cache('iam_security')
+                st.success("IAM data refreshed")
+                st.rerun()
+            else:
+                st.rerun()
     
     try:
         iam_data = security_monitors.get_iam_security_data()
@@ -1053,7 +1134,19 @@ def show_data_protection_tab(security_monitors, dashboard_components):
         st.error(f"Error loading data protection data: {str(e)}")
 
 def show_compliance_tab(security_monitors, dashboard_components):
-    st.header("Compliance Monitoring")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.header("Compliance Monitoring")
+    
+    with col2:
+        if st.button("⚡ Refresh Compliance", key="compliance_refresh"):
+            if hasattr(security_monitors, 'invalidate_cache'):
+                security_monitors.invalidate_cache('compliance_data')
+                st.success("Compliance data refreshed")
+                st.rerun()
+            else:
+                st.rerun()
     
     try:
         compliance_data = security_monitors.get_compliance_data()
@@ -1301,7 +1394,19 @@ def show_compliance_tab(security_monitors, dashboard_components):
         st.error(f"Error loading compliance data: {str(e)}")
 
 def show_alerts_threats_tab(security_monitors, dashboard_components):
-    st.header("Alerts & Threat Detection")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.header("Alerts & Threat Detection")
+    
+    with col2:
+        if st.button("⚡ Refresh Alerts", key="alerts_refresh"):
+            if hasattr(security_monitors, 'invalidate_cache'):
+                security_monitors.invalidate_cache('alerts_and_threats')
+                st.success("Alerts data refreshed")
+                st.rerun()
+            else:
+                st.rerun()
     
     try:
         threats_data = security_monitors.get_threats_data()

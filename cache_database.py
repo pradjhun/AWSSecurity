@@ -430,21 +430,39 @@ def show_cache_management_interface(cached_client: CachedAWSClient):
         speed_improvement = ((cache_stats['avg_api_time'] - cache_stats['avg_cache_time']) / cache_stats['avg_api_time']) * 100
         st.success(f"Cache provides {speed_improvement:.1f}% speed improvement")
     
-    # Cache controls
-    col1, col2, col3 = st.columns(3)
+    # Cache controls with enhanced feedback
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🔄 Clear All Cache"):
-            cleared = cached_client.invalidate_cache()
-            st.success(f"Cleared {cleared} cache entries")
+        if st.button("🔄 Clear All Cache", type="primary", use_container_width=True):
+            with st.spinner("Clearing cache..."):
+                cleared = cached_client.invalidate_cache()
+                if cleared > 0:
+                    st.success(f"✅ Cleared {cleared} cache entries")
+                    st.balloons()
+                else:
+                    st.info("Cache was already empty")
+            st.rerun()
     
     with col2:
-        if st.button("🧹 Clean Expired"):
-            cleaned = cached_client.cleanup_cache()
-            st.success(f"Cleaned {cleaned} expired entries")
+        if st.button("🧹 Clean Expired", use_container_width=True):
+            with st.spinner("Cleaning expired entries..."):
+                cleaned = cached_client.cleanup_cache()
+                if cleaned > 0:
+                    st.success(f"🗑️ Cleaned {cleaned} expired entries")
+                else:
+                    st.info("No expired entries found")
     
     with col3:
-        if st.button("📊 Refresh Stats"):
+        if st.button("⚡ Force Refresh", use_container_width=True):
+            with st.spinner("Forcing data refresh..."):
+                # Clear cache and refresh immediately
+                cleared = cached_client.invalidate_cache()
+                st.success(f"🔄 Refreshed! Cleared {cleared} entries")
+            st.rerun()
+    
+    with col4:
+        if st.button("📊 Refresh Stats", use_container_width=True):
             st.rerun()
     
     # Detailed breakdown
