@@ -17,4 +17,5 @@ dependencies = [
     "pyyaml>=6.0.2",
     "requests>=2.32.4",
     "numpy>=2.3.0",
+    "geoip2>=5.1.0",
 ]

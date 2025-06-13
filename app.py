@@ -347,7 +347,7 @@ def main():
     security_heatmap = SecurityRiskHeatmap(st.session_state.aws_client)
     
     # Main dashboard tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
         "🏠 Overview",
         "🔥 Risk Heatmap",
         "👤 IAM Security", 
@@ -359,6 +359,7 @@ def main():
         "🔐 Vulnerability Scanner",
         "🤖 AI Recommendations",
         "🧠 OWASP LLM Top 10",
+        "🌍 Global Traffic Map",
         "📤 Export Reports"
     ])
     
