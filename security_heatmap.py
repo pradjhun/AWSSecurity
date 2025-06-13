@@ -86,11 +86,17 @@ class SecurityRiskHeatmap:
                     finding_count = len(findings)
                     
                     if finding_count > 0:
-                        # Calculate risk based on actual finding severity
-                        critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
-                        high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
-                        medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
-                        low_findings = sum(1 for f in findings if f.get('Severity', 0) < 4.0)
+                        # Calculate risk based on actual finding severity with safe type conversion
+                        def safe_severity_check(severity_val):
+                            try:
+                                return float(severity_val) if severity_val else 0.0
+                            except (ValueError, TypeError):
+                                return 0.0
+                        
+                        critical_findings = sum(1 for f in findings if safe_severity_check(f.get('Severity', 0)) >= 8.5)
+                        high_findings = sum(1 for f in findings if 7.0 <= safe_severity_check(f.get('Severity', 0)) < 8.5)
+                        medium_findings = sum(1 for f in findings if 4.0 <= safe_severity_check(f.get('Severity', 0)) < 7.0)
+                        low_findings = sum(1 for f in findings if safe_severity_check(f.get('Severity', 0)) < 4.0)
                         
                         # Weighted risk calculation
                         guardduty_risk = min(100, 
