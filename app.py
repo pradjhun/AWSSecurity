@@ -1806,21 +1806,8 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
     st.header("🔐 Trivy-Inspired Vulnerability Scanner")
     st.markdown("Comprehensive vulnerability scanning for containers, infrastructure, and secrets")
     
-    st.warning("⚠️ Vulnerability Scanner is temporarily disabled to prevent system instability.")
-    st.info("This feature will be re-enabled in a future update with proper integration.")
-    
-    # Show basic vulnerability information if available
-    if 'trivy_scan_results' in st.session_state and st.session_state.trivy_scan_results:
-        st.subheader("Previous Scan Results")
-        st.json(st.session_state.trivy_scan_results)
-    else:
-        st.info("No previous vulnerability scan results available.")
-    
-    return
-    
-    # DISABLED CODE BELOW - NOT EXECUTED
     try:
-        # Initialize Trivy scanner - DISABLED
+        # Initialize Trivy scanner
         from trivy_integration import TrivyIntegratedScanner
         trivy_scanner = TrivyIntegratedScanner(st.session_state.aws_client)
         
