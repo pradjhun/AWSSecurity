@@ -434,7 +434,7 @@ def show_cache_management_interface(cached_client: CachedAWSClient):
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("🔄 Clear All Cache", type="primary", use_container_width=True):
+        if st.button("🔄 Clear All Cache", type="primary", use_container_width=True, key="cache_mgmt_clear_all"):
             with st.spinner("Clearing cache..."):
                 cleared = cached_client.invalidate_cache()
                 if cleared > 0:
@@ -445,7 +445,7 @@ def show_cache_management_interface(cached_client: CachedAWSClient):
             st.rerun()
     
     with col2:
-        if st.button("🧹 Clean Expired", use_container_width=True):
+        if st.button("🧹 Clean Expired", use_container_width=True, key="cache_mgmt_clean_expired"):
             with st.spinner("Cleaning expired entries..."):
                 cleaned = cached_client.cleanup_cache()
                 if cleaned > 0:
@@ -454,7 +454,7 @@ def show_cache_management_interface(cached_client: CachedAWSClient):
                     st.info("No expired entries found")
     
     with col3:
-        if st.button("⚡ Force Refresh", use_container_width=True):
+        if st.button("⚡ Force Refresh", use_container_width=True, key="cache_mgmt_force_refresh"):
             with st.spinner("Forcing data refresh..."):
                 # Clear cache and refresh immediately
                 cleared = cached_client.invalidate_cache()
@@ -462,7 +462,7 @@ def show_cache_management_interface(cached_client: CachedAWSClient):
             st.rerun()
     
     with col4:
-        if st.button("📊 Refresh Stats", use_container_width=True):
+        if st.button("📊 Refresh Stats", use_container_width=True, key="cache_mgmt_refresh_stats"):
             st.rerun()
     
     # Detailed breakdown

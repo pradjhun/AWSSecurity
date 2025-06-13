@@ -366,7 +366,7 @@ def main():
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("🔄 Clear All Cache", use_container_width=True, type="primary"):
+                if st.button("🔄 Clear All Cache", use_container_width=True, type="primary", key="sidebar_clear_all"):
                     if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
                         cleared = st.session_state.cached_client.invalidate_cache()
                         st.success(f"Cleared {cleared} entries")
@@ -376,7 +376,7 @@ def main():
                         st.warning("Cache not available")
             
             with col2:
-                if st.button("🧹 Clean Expired", use_container_width=True):
+                if st.button("🧹 Clean Expired", use_container_width=True, key="sidebar_clean_expired"):
                     if hasattr(st.session_state, 'cached_client') and st.session_state.cached_client:
                         cleaned = st.session_state.cached_client.cleanup_cache()
                         if cleaned > 0:
@@ -398,7 +398,7 @@ def main():
                     pass
             
             st.markdown("---")
-            if st.button("Disconnect", use_container_width=True):
+            if st.button("Disconnect", use_container_width=True, key="sidebar_disconnect"):
                 st.session_state.aws_client = None
                 st.session_state.connected = False
                 st.rerun()
