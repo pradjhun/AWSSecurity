@@ -499,8 +499,14 @@ def show_overview_tab(security_monitors, dashboard_components):
                 st.rerun()
     
     try:
-        # Get overview data
-        overview_data = security_monitors.get_security_overview()
+        # Get overview data with error handling
+        try:
+            overview_data = security_monitors.get_security_overview()
+        except Exception as overview_error:
+            st.error(f"Overview data error details: {str(overview_error)}")
+            import traceback
+            st.code(traceback.format_exc())
+            overview_data = {}
         
         # Multi-region overview
         if overview_data.get('total_regions', 1) > 1:

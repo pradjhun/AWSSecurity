@@ -448,9 +448,16 @@ class SecurityRiskHeatmap:
             
             if findings:
                 finding_count = len(findings)
-                critical_findings = sum(1 for f in findings if f.get('Severity', 0) >= 8.5)
-                high_findings = sum(1 for f in findings if 7.0 <= f.get('Severity', 0) < 8.5)
-                medium_findings = sum(1 for f in findings if 4.0 <= f.get('Severity', 0) < 7.0)
+                # Use safe severity checking for all comparisons
+                def safe_severity_check(severity_val):
+                    try:
+                        return float(severity_val) if severity_val else 0.0
+                    except (ValueError, TypeError):
+                        return 0.0
+                
+                critical_findings = sum(1 for f in findings if safe_severity_check(f.get('Severity', 0)) >= 8.5)
+                high_findings = sum(1 for f in findings if 7.0 <= safe_severity_check(f.get('Severity', 0)) < 8.5)
+                medium_findings = sum(1 for f in findings if 4.0 <= safe_severity_check(f.get('Severity', 0)) < 7.0)
                 
                 explanation['factors'].append(f"📊 Total findings: {finding_count}")
                 
@@ -464,10 +471,17 @@ class SecurityRiskHeatmap:
                 # Add detailed findings information
                 explanation['detailed_findings'] = []
                 for finding in findings[:10]:  # Show top 10 findings
+                    # Safe severity conversion for consistent data types
+                    raw_severity = finding.get('Severity', 0)
+                    try:
+                        safe_severity = float(raw_severity) if raw_severity else 0.0
+                    except (ValueError, TypeError):
+                        safe_severity = 0.0
+                    
                     finding_detail = {
                         'title': finding.get('Title', 'Unknown Finding'),
                         'type': finding.get('Type', 'Unknown'),
-                        'severity': finding.get('Severity', 0),
+                        'severity': safe_severity,
                         'description': finding.get('Description', 'No description available'),
                         'service': finding.get('Service', {}).get('ServiceName', 'Unknown Service'),
                         'region': finding.get('Region', 'Unknown'),
