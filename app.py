@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from streamlit_autorefresh import st_autorefresh
+# from streamlit_autorefresh import st_autorefresh  # DISABLED to prevent infinite loops
 import os
 
 from aws_client import AWSClient
@@ -255,7 +255,8 @@ def main():
         auto_refresh = st.checkbox("Enable auto-refresh", value=True)
         
         if auto_refresh:
-            st_autorefresh(interval=refresh_interval * 1000, key="dashboard_refresh")
+            # st_autorefresh(interval=refresh_interval * 1000, key="dashboard_refresh")  # DISABLED
+            pass
         
         st.divider()
         
@@ -1805,8 +1806,22 @@ def show_vulnerability_scanner_tab(security_monitors, dashboard_components):
     st.header("🔐 Trivy-Inspired Vulnerability Scanner")
     st.markdown("Comprehensive vulnerability scanning for containers, infrastructure, and secrets")
     
+    st.warning("⚠️ Vulnerability Scanner is temporarily disabled to prevent system instability.")
+    st.info("This feature will be re-enabled in a future update with proper integration.")
+    
+    # Show basic vulnerability information if available
+    if 'trivy_scan_results' in st.session_state and st.session_state.trivy_scan_results:
+        st.subheader("Previous Scan Results")
+        st.json(st.session_state.trivy_scan_results)
+    else:
+        st.info("No previous vulnerability scan results available.")
+    
+    return
+    
+    # DISABLED CODE BELOW - NOT EXECUTED
     try:
-        # Initialize Trivy scanner
+        # Initialize Trivy scanner - DISABLED
+        from trivy_integration import TrivyIntegratedScanner
         trivy_scanner = TrivyIntegratedScanner(st.session_state.aws_client)
         
         # Scanner controls
@@ -2883,9 +2898,10 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
         with col1:
             st.subheader("Real-time Security Risk Analysis")
         with col2:
-            auto_refresh = st.checkbox("Auto-refresh", value=True, key="heatmap_refresh")
+            auto_refresh = st.checkbox("Auto-refresh", value=False, key="heatmap_refresh")
             if auto_refresh:
-                st_autorefresh(interval=30000, key="heatmap_auto_refresh")  # 30 seconds
+                # st_autorefresh(interval=30000, key="heatmap_auto_refresh")  # DISABLED - was causing infinite loops
+                st.info("Auto-refresh is disabled to prevent infinite loops")
         
         # Risk level legend
         st.markdown("### Risk Level Legend")
