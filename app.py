@@ -897,15 +897,19 @@ def show_overview_tab(security_monitors, dashboard_components):
                 if recent_events:
                     st.markdown(f"**Recent CloudTrail Events:** {len(recent_events)}")
                     
+                    # Debug: Show actual CloudTrail data structure
+                    if st.checkbox("Show CloudTrail debug info", key="debug_cloudtrail"):
+                        st.json(recent_events[0] if recent_events else {})
+                    
                     events_display = []
                     for event in recent_events:
+                        # Map the correct field names from security_monitors.py output
                         events_display.append({
-                            'Event Name': event.get('event_name', 'Unknown'),
-                            'User': event.get('username', 'Unknown'),
-                            'Source IP': event.get('source_ip_address', 'Unknown'),
-                            'Region': event.get('aws_region', 'Unknown'),
-                            'Time': event.get('event_time', 'Unknown'),
-                            'User Agent': event.get('user_agent', 'Unknown')[:50] + '...' if event.get('user_agent', '') else 'Unknown'
+                            'Event Name': event.get('Event') or event.get('event_name', 'Unknown'),
+                            'User': event.get('User') or event.get('username', 'Unknown'),
+                            'Source IP': event.get('Source IP') or event.get('source_ip_address', 'Unknown'),
+                            'Service': event.get('Service') or event.get('aws_region', 'Unknown'),
+                            'Time': event.get('Time') or event.get('event_time', 'Unknown')
                         })
                     
                     if events_display:
