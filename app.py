@@ -1589,11 +1589,7 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
         if 'enhanced_checks_running' not in st.session_state:
             st.session_state.enhanced_checks_running = False
         
-        run_checks_button = st.button("Run Enhanced Security Checks", type="primary", disabled=st.session_state.enhanced_checks_running)
-        
-        if run_checks_button and not st.session_state.enhanced_checks_running:
-            st.session_state.enhanced_checks_running = True
-            
+        if st.button("Run Enhanced Security Checks", type="primary"):
             with st.spinner("Running comprehensive security assessments..."):
                 all_findings = []
                 
@@ -1629,10 +1625,8 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                     except Exception as e:
                         st.error(f"Network checks failed: {str(e)}")
             
-            
             # Store findings in session state for export
             st.session_state.enhanced_findings = all_findings
-            st.session_state.enhanced_checks_running = False
             
             st.success(f"Enhanced security checks completed! Found {len(all_findings)} findings.")
             
@@ -1676,70 +1670,70 @@ def show_enhanced_checks_tab(security_monitors, dashboard_components):
                         'MEDIUM': '🟡',
                         'LOW': '🟢'
                     }.get(finding.get('severity', 'LOW'), '⚪')
+                    
+                    with st.expander(f"{severity_color} {finding.get('title', 'Security Finding')}", expanded=False):
+                        col1, col2 = st.columns([2, 1])
                         
-                        with st.expander(f"{severity_color} {finding.get('title', 'Security Finding')}", expanded=False):
-                            col1, col2 = st.columns([2, 1])
-                            
-                            with col1:
-                                st.markdown(f"**Check ID:** {finding.get('check_id', 'N/A')}")
-                                st.markdown(f"**Description:** {finding.get('description', 'N/A')}")
-                                st.markdown(f"**Remediation:** {finding.get('remediation', 'N/A')}")
-                            
-                            with col2:
-                                st.markdown(f"**Severity:** {finding.get('severity', 'N/A')}")
-                                st.markdown(f"**Resource:** {finding.get('resource', 'N/A')}")
-                                st.markdown(f"**Resource Type:** {finding.get('resource_type', 'N/A')}")
-                                st.markdown(f"**Status:** {finding.get('status', 'N/A')}")
-                else:
-                    st.success("No security issues found in the selected assessments!")
-                
-                # PDF Export option after running checks
-                if all_findings:
-                    st.subheader("📄 Export Enhanced Findings")
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        if st.button("Generate PDF Report with Findings", type="primary", key="enhanced_pdf_export"):
-                            try:
-                                with st.spinner("Generating PDF report with enhanced findings..."):
-                                    export_manager = ExportManager()
-                                    overview_data = security_monitors.get_security_overview()
-                                    compliance_data = security_monitors.get_compliance_data()
-                                    
-                                    pdf_data = export_manager.export_compliance_report_to_pdf(
-                                        overview_data,
-                                        compliance_data,
-                                        overview_data.get('recommendations', []),
-                                        all_findings
-                                    )
-                                    
-                                    filename = export_manager.get_pdf_filename("enhanced_security_assessment")
-                                    
-                                    st.download_button(
-                                        label="Download Enhanced Security Report",
-                                        data=pdf_data,
-                                        file_name=filename,
-                                        mime="application/pdf",
-                                        key="download_enhanced_pdf"
-                                    )
-                                    st.success("Enhanced security report generated successfully!")
-                            except Exception as e:
-                                st.error(f"Error generating enhanced PDF report: {str(e)}")
-                    
-                    with col2:
-                        # JSON export for enhanced findings
-                        if st.button("Export Findings as JSON", key="enhanced_json_export"):
+                        with col1:
+                            st.markdown(f"**Check ID:** {finding.get('check_id', 'N/A')}")
+                            st.markdown(f"**Description:** {finding.get('description', 'N/A')}")
+                            st.markdown(f"**Remediation:** {finding.get('remediation', 'N/A')}")
+                        
+                        with col2:
+                            st.markdown(f"**Severity:** {finding.get('severity', 'N/A')}")
+                            st.markdown(f"**Resource:** {finding.get('resource', 'N/A')}")
+                            st.markdown(f"**Resource Type:** {finding.get('resource_type', 'N/A')}")
+                            st.markdown(f"**Status:** {finding.get('status', 'N/A')}")
+            else:
+                st.success("No security issues found in the selected assessments!")
+        
+        # PDF Export option (always show if previous findings exist)
+        if 'enhanced_findings' in st.session_state and st.session_state.enhanced_findings:
+            st.subheader("📄 Export Enhanced Findings")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("Generate PDF Report with Findings", type="primary", key="enhanced_pdf_export"):
+                    try:
+                        with st.spinner("Generating PDF report with enhanced findings..."):
                             export_manager = ExportManager()
-                            json_data = export_manager.export_findings_to_json(all_findings)
-                            filename = export_manager.get_export_filename('json', 'enhanced_findings')
+                            overview_data = security_monitors.get_security_overview()
+                            compliance_data = security_monitors.get_compliance_data()
+                            
+                            pdf_data = export_manager.export_compliance_report_to_pdf(
+                                overview_data,
+                                compliance_data,
+                                overview_data.get('recommendations', []),
+                                st.session_state.enhanced_findings
+                            )
+                            
+                            filename = export_manager.get_pdf_filename("enhanced_security_assessment")
                             
                             st.download_button(
-                                label="Download JSON Findings",
-                                data=json_data,
+                                label="Download Enhanced Security Report",
+                                data=pdf_data,
                                 file_name=filename,
-                                mime="application/json",
-                                key="download_enhanced_json"
+                                mime="application/pdf",
+                                key="download_enhanced_pdf"
                             )
+                            st.success("Enhanced security report generated successfully!")
+                    except Exception as e:
+                        st.error(f"Error generating enhanced PDF report: {str(e)}")
+            
+            with col2:
+                # JSON export for enhanced findings
+                if st.button("Export Findings as JSON", key="enhanced_json_export"):
+                    export_manager = ExportManager()
+                    json_data = export_manager.export_findings_to_json(st.session_state.enhanced_findings)
+                    filename = export_manager.get_export_filename('json', 'enhanced_findings')
+                    
+                    st.download_button(
+                        label="Download JSON Findings",
+                        data=json_data,
+                        file_name=filename,
+                        mime="application/json",
+                        key="download_enhanced_json"
+                    )
                     
     except Exception as e:
         st.error(f"Error running enhanced security checks: {str(e)}")
