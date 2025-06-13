@@ -9,6 +9,7 @@ import os
 
 from aws_client import AWSClient
 from security_monitors import SecurityMonitors
+from cached_security_monitors import CachedSecurityMonitors
 from dashboard_components import DashboardComponents
 from utils import format_timestamp, calculate_security_score, get_severity_color
 from enhanced_security_checks import EnhancedSecurityChecks
@@ -353,8 +354,12 @@ def main():
         st.info("Once connected, you'll have access to comprehensive security monitoring across all AWS services.")
         return
     
-    # Initialize security monitors and dashboard components
-    security_monitors = SecurityMonitors(st.session_state.aws_client)
+    # Initialize security monitors and dashboard components with caching
+    if hasattr(st.session_state, 'cache_db') and st.session_state.cache_db:
+        security_monitors = CachedSecurityMonitors(st.session_state.aws_client, st.session_state.cache_db)
+    else:
+        security_monitors = SecurityMonitors(st.session_state.aws_client)
+    
     dashboard_components = DashboardComponents()
     security_heatmap = SecurityRiskHeatmap(st.session_state.aws_client)
     
