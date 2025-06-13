@@ -505,7 +505,17 @@ def show_overview_tab(security_monitors, dashboard_components):
         except Exception as overview_error:
             st.error(f"Overview data error details: {str(overview_error)}")
             import traceback
-            st.code(traceback.format_exc())
+            full_traceback = traceback.format_exc()
+            st.code(full_traceback)
+            
+            # Extract the specific line causing the error
+            lines = full_traceback.split('\n')
+            for i, line in enumerate(lines):
+                if '>=' in line and 'severity' in line.lower():
+                    st.error(f"Error found at: {line.strip()}")
+                elif 'File "' in line and '.py' in line:
+                    st.info(f"In file: {line.strip()}")
+            
             overview_data = {}
         
         # Multi-region overview
@@ -847,14 +857,19 @@ def show_overview_tab(security_monitors, dashboard_components):
                     if findings_display:
                         df_findings = pd.DataFrame(findings_display)
                         
-                        # Apply styling based on severity
+                        # Apply styling based on severity with safe type conversion
                         def highlight_findings(row):
                             severity = row['Severity']
-                            if severity >= 8.5:
+                            try:
+                                severity_float = float(severity) if severity else 0.0
+                            except (ValueError, TypeError):
+                                severity_float = 0.0
+                            
+                            if severity_float >= 8.5:
                                 return ['background-color: #ffebee'] * len(row)
-                            elif severity >= 7.0:
+                            elif severity_float >= 7.0:
                                 return ['background-color: #fff3e0'] * len(row)
-                            elif severity >= 5.0:
+                            elif severity_float >= 5.0:
                                 return ['background-color: #e3f2fd'] * len(row)
                             else:
                                 return [''] * len(row)
@@ -2964,13 +2979,18 @@ def show_risk_heatmap_tab(security_monitors, dashboard_components, security_heat
                         for i, finding in enumerate(findings, 1):
                             # Handle different finding formats for different services
                             if service_name == "GuardDuty":
-                                # GuardDuty findings format
-                                severity_color = "#E53E3E" if finding.get('severity', 0) >= 8.5 else "#D69E2E" if finding.get('severity', 0) >= 7.0 else "#3182CE"
+                                # GuardDuty findings format with safe severity conversion
+                                severity_val = finding.get('severity', 0)
+                                try:
+                                    severity_float = float(severity_val) if severity_val else 0.0
+                                except (ValueError, TypeError):
+                                    severity_float = 0.0
+                                severity_color = "#E53E3E" if severity_float >= 8.5 else "#D69E2E" if severity_float >= 7.0 else "#3182CE"
                                 title = finding.get('title', 'Unknown Finding')[:50]
                                 
                                 with st.expander(f"Finding {i}: {title}...", expanded=False):
                                     st.markdown(f"**Type:** {finding.get('type', 'Unknown')}")
-                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{finding.get('severity', 0):.1f}</span>", unsafe_allow_html=True)
+                                    st.markdown(f"**Severity:** <span style='color: {severity_color}; font-weight: bold;'>{severity_float:.1f}</span>", unsafe_allow_html=True)
                                     st.markdown(f"**Service:** {finding.get('service', 'Unknown')}")
                                     st.markdown(f"**Region:** {finding.get('region', 'Unknown')}")
                                     st.markdown(f"**Resource Type:** {finding.get('resource_type', 'Unknown')}")
