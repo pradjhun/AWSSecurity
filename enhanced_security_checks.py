@@ -363,19 +363,28 @@ class EnhancedSecurityChecks:
             return None
     
     def run_all_enhanced_checks(self):
-        """Run all enhanced security checks"""
+        """Run all enhanced security checks with error handling"""
         all_findings = []
         
-        print("Running database security checks...")
-        all_findings.extend(self.run_database_security_checks())
-        
-        print("Running container security checks...")
-        all_findings.extend(self.run_container_security_checks())
-        
-        print("Running advanced IAM checks...")
-        all_findings.extend(self.run_advanced_iam_checks())
-        
-        print("Running network security deep dive...")
-        all_findings.extend(self.run_network_security_deep_dive())
+        try:
+            print("Running database security checks...")
+            db_findings = self.run_database_security_checks()
+            all_findings.extend(db_findings)
+            
+            print("Running container security checks...")
+            container_findings = self.run_container_security_checks()
+            all_findings.extend(container_findings)
+            
+            print("Running advanced IAM checks...")
+            iam_findings = self.run_advanced_iam_checks()
+            all_findings.extend(iam_findings)
+            
+            print("Running network security deep dive...")
+            network_findings = self.run_network_security_deep_dive()
+            all_findings.extend(network_findings)
+            
+        except Exception as e:
+            print(f"Error in enhanced security checks: {str(e)}")
+            return []
         
         return all_findings

@@ -2296,14 +2296,8 @@ def show_ai_recommendations_tab(security_monitors, dashboard_components):
         overview_data = security_monitors.get_security_overview()
         compliance_data = security_monitors.get_compliance_data()
         
-        # Try to get enhanced findings if available
-        enhanced_findings = []
-        try:
-            from enhanced_security_checks import EnhancedSecurityChecks
-            enhanced_checks = EnhancedSecurityChecks(security_monitors.aws_client)
-            enhanced_findings = enhanced_checks.run_all_enhanced_checks()
-        except Exception as e:
-            st.info(f"Enhanced findings not available: {str(e)}")
+        # Get enhanced findings from session state (only run when explicitly triggered)
+        enhanced_findings = st.session_state.get('enhanced_findings', [])
         
         # Generate AI recommendations
         with st.spinner("🧠 AI is analyzing your AWS security configuration..."):
